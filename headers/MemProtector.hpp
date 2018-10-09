@@ -9,7 +9,14 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+
+#ifdef _MSC_VER
 #include <Windows.h>
+#else
+#include <sys/mman.h>
+#include <mach/mach.h>
+#endif
+
 #include <iostream>
 
 PLH::ProtFlag operator|(PLH::ProtFlag lhs, PLH::ProtFlag rhs);
@@ -17,7 +24,7 @@ bool operator&(PLH::ProtFlag lhs, PLH::ProtFlag rhs);
 std::ostream& operator<<(std::ostream& os, const PLH::ProtFlag v);
 
 namespace PLH {
-int	TranslateProtection(const PLH::ProtFlag flags);
+int TranslateProtection(const PLH::ProtFlag flags);
 ProtFlag TranslateProtection(const int prot);
 
 class MemoryProtector {
@@ -47,9 +54,19 @@ public:
 	}
 private:
 	PLH::ProtFlag protect(const uint64_t address, const uint64_t length, int prot) {
+        #ifdef _MSC_VER
 		DWORD orig;
 		DWORD dwProt = prot;
 		status = VirtualProtect((char*)address, (SIZE_T)length, dwProt, &orig) != 0;
+        #else
+        int orig=0x7;
+        auto d = (unsigned long *) ((int64_t) address &~(PAGE_SIZE-1));
+        int error = mprotect((void*)d, (size_t)PAGE_SIZE, prot);
+        if (error != 0)
+        {
+            
+        }
+        #endif
 		return TranslateProtection(orig);
 	}
 

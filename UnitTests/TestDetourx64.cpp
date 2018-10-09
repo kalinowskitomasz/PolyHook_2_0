@@ -7,6 +7,10 @@
 
 #include "headers/tests/TestEffectTracker.hpp"
 
+#ifndef _MSC_VER
+#define NOINLINE __attribute__ ((noinline))
+#endif
+
 EffectTracker effects;
 
 /**These tests can spontaneously fail if the compiler desides to optimize away

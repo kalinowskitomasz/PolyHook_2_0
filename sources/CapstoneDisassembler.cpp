@@ -2,6 +2,12 @@
 // Created by steve on 7/5/17.
 //
 #include "headers/CapstoneDisassembler.hpp"
+#ifdef _MSC_VER
+#define DEBUG_BREAK __debugbreak()
+#else
+#include <signal.h>
+#define DEBUG_BREAK raise(SIGTRAP);
+#endif
 
 PLH::insts_t
 PLH::CapstoneDisassembler::disassemble(uint64_t firstInstruction, uint64_t start, uint64_t End) {
@@ -121,7 +127,7 @@ void PLH::CapstoneDisassembler::copyDispSX(PLH::Instruction& inst,
 	 * and 0 when sign bit not set (positive displacement)*/
 	int64_t displacement = 0;
 	if (offset + size > (uint8_t)inst.getBytes().size()) {
-		__debugbreak();
+		DEBUG_BREAK;
 		return;
 	}
 
@@ -145,7 +151,7 @@ void PLH::CapstoneDisassembler::copyDispSX(PLH::Instruction& inst,
 		inst.setRelativeDisplacement(displacement);
 	} else {
 		if (((uint64_t)displacement) != ((uint64_t)immDestination))
-			__debugbreak();
+			DEBUG_BREAK;
 		assert(((uint64_t)displacement) == ((uint64_t)immDestination));
 		inst.setAbsoluteDisplacement((uint64_t)displacement);
 	}

@@ -20,11 +20,11 @@ enum class HookType {
 };
 
 //unsafe enum by design to allow binary OR
-enum ProtFlag : std::uint8_t {
+enum class ProtFlag : uint8_t {
 	UNSET = 0, // Value means this give no information about protection state (un-read)
-	X = 1 << 1,
-	R = 1 << 2,
-	W = 1 << 3,
+	R = 1 << 1,
+	W = 1 << 2,
+	X = 1 << 3,
 	S = 1 << 4,
 	P = 1 << 5,
 	NONE = 1 << 6 //The value equaling the linux flag PROT_UNSET (read the prot, and the prot is unset)
