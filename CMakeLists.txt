@@ -1,12 +1,27 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.12.3)
 project(PolyHook_2)
+set(CMAKE_CXX_STANDARD 17)
+
+set(CAPSTONE_ARM_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_ARM_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_ARM64_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_M680X_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_M68K_SUPPORT  0 CACHE INTERNAL "")
+set(CAPSTONE_MIPS_SUPPORT  0 CACHE INTERNAL "")
+set(CAPSTONE_PPC_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_SPARC_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_SYSZ_SUPPORT  0 CACHE INTERNAL "")
+set(CAPSTONE_XCORE_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_TMS320C64X_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_M680X_SUPPORT 0 CACHE INTERNAL "")
+set(CAPSTONE_EVM_SUPPORT 0 CACHE INTERNAL "")
+
+add_subdirectory(capstone)
 
 option(FEATURE_DETOURS "Implement detour functionality" ON)
 option(FEATURE_EXCEPTION "Implement all exception hooking functionality" OFF)
 option(FEATURE_VIRTUALS "Implement all virtual table hooking functionality" OFF)
 option(FEATURE_PE "Implement all win pe hooking functionality" OFF)
-option(BUILD_DLL "Build dll & lib instead of tests" OFF)
-option(BUILD_STATIC "If BUILD_DLL is set, create the type that can be statically linked" ON)
 
 #IDE's like it when header file are included as source files
 set(HEADER_FILES ${PROJECT_SOURCE_DIR}/headers/ADisassembler.hpp
@@ -44,16 +59,17 @@ if(FEATURE_DETOURS MATCHES ON)
 	set(HEADER_IMP_SOURCES ${HEADER_IMP_SOURCES} ${DETOUR_IMP_SOURCES})
 
 	# only build tests if making exe
-	if(BUILD_DLL MATCHES OFF)
-		if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-			# 64 bits
-			set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} 
-				${PROJECT_SOURCE_DIR}/UnitTests/TestDetourx64.cpp)
-		elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-			# 32 bits
-			set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} 
-				${PROJECT_SOURCE_DIR}/UnitTests/TestDetourx86.cpp)
-		endif()
+	
+	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+		message("Detected 64 bit")
+		# 64 bits
+		set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} 
+			${PROJECT_SOURCE_DIR}/UnitTests/TestDetourx64.cpp)
+	elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+		# 32 bits
+		message("Detected 32 bit")
+		set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} 
+			${PROJECT_SOURCE_DIR}/UnitTests/TestDetourx86.cpp)
 	endif()
 endif()
 
@@ -72,11 +88,9 @@ if(FEATURE_EXCEPTION MATCHES ON)
 	set(HEADER_IMP_SOURCES ${HEADER_IMP_SOURCES} ${EXCEPTION_IMP_SOURCES})
 
 	# only build tests if making exe
-	if(BUILD_DLL MATCHES OFF)
-		set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} 
-				${PROJECT_SOURCE_DIR}/UnitTests/TestBreakpointHook.cpp
-				${PROJECT_SOURCE_DIR}/UnitTests/TestHWBreakpointHook.cpp)
-	endif()
+	set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} 
+		${PROJECT_SOURCE_DIR}/UnitTests/TestBreakpointHook.cpp
+		${PROJECT_SOURCE_DIR}/UnitTests/TestHWBreakpointHook.cpp)
 endif()
 
 if(FEATURE_VIRTUALS MATCHES ON)
@@ -92,11 +106,9 @@ if(FEATURE_VIRTUALS MATCHES ON)
 	set(HEADER_IMP_SOURCES ${HEADER_IMP_SOURCES} ${VIRTUAL_IMP_SOURCES})
 
 	# only build tests if making exe
-	if(BUILD_DLL MATCHES OFF)
-		set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} 
-				${PROJECT_SOURCE_DIR}/UnitTests/TestVTableSwapHook.cpp
-				${PROJECT_SOURCE_DIR}/UnitTests/TestVFuncSwapHook.cpp)
-	endif()
+	set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES} 
+		${PROJECT_SOURCE_DIR}/UnitTests/TestVTableSwapHook.cpp
+		${PROJECT_SOURCE_DIR}/UnitTests/TestVFuncSwapHook.cpp)
 endif()
 
 if(FEATURE_PE MATCHES ON)
@@ -113,53 +125,36 @@ if(FEATURE_PE MATCHES ON)
 	set(HEADER_IMP_SOURCES ${HEADER_IMP_SOURCES} ${PE_IMP_SOURCES})
 
 	# only build tests if making exe
-	if(BUILD_DLL MATCHES OFF)
-		set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES}
-				${PROJECT_SOURCE_DIR}/UnitTests/TestEatHook.cpp
-				${PROJECT_SOURCE_DIR}/UnitTests/TestIatHook.cpp)
-	endif()
+	set(UNIT_TEST_SOURCES ${UNIT_TEST_SOURCES}
+			${PROJECT_SOURCE_DIR}/UnitTests/TestEatHook.cpp
+			${PROJECT_SOURCE_DIR}/UnitTests/TestIatHook.cpp)
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 
-set(SOURCE_FILES_PLH ${UNIT_TEST_SOURCES} ${HEADER_IMP_SOURCES} ${HEADER_FILES})
+set(SOURCE_FILES_PLH ${HEADER_IMP_SOURCES} ${HEADER_FILES})
 
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-if(BUILD_DLL MATCHES ON) 
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-	if(BUILD_STATIC MATCHES ON)
-	    add_library(PolyHook_2 STATIC ${SOURCE_FILES_PLH})
-	else()
-	    add_library(PolyHook_2 SHARED ${SOURCE_FILES_PLH})
-	endif()
-else()
-    add_executable(PolyHook_2 ${SOURCE_FILES_PLH})
-endif()
+add_library(PolyHook_2 ${SOURCE_FILES_PLH})
+add_executable(TestRunner ${SOURCE_FILES_PLH} ${UNIT_TEST_SOURCES})
 
 # require c++ 17 (for std::optional) and add WALL + PDB flags
-target_compile_options(PolyHook_2 PRIVATE -std=c++17 -m32)
+
+
+
 if(MSVC)
-  target_compile_options(PolyHook_2 PRIVATE /W4 /WX /Z7)
-  target_link_libraries(PolyHook_2 optimized -DEBUG) # mhhm ya pdbs
+	set(MY_DEBUG_OPTIONS /W4 /WX /Z7)
+else()
+	set(MY_DEBUG_OPTIONS -std=c++17)
 endif()
 
-#Set this variable to hold the path to capstone directory
-set(CAPSTONE_LIB_PATH_64 ${PROJECT_SOURCE_DIR}/capstone/build64)
-set(CAPSTONE_LIB_PATH_86 ${PROJECT_SOURCE_DIR}/capstone/build32)
+target_compile_options(PolyHook_2 PUBLIC "$<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>")
+target_compile_options(PolyHook_2 PUBLIC "$<$<CONFIG:RELEASE>:${MY_DEBUG_OPTIONS}>")
 
-#Find the absolute path to the lib (linux)
-#find_library(CAPSTONE_LIB NAMES libcapstone.a PATHS ${CAPSTONE_LIB_PATH})
+target_compile_options(TestRunner PUBLIC "$<$<CONFIG:DEBUG>:${MY_DEBUG_OPTIONS}>")
+target_compile_options(TestRunner PUBLIC "$<$<CONFIG:RELEASE>:${MY_DEBUG_OPTIONS}>")
 
-#if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-#    # 64 bits
-	
-##Link the capstone lib according to config mode
-#	target_link_libraries(${PROJECT_NAME} debug ${CAPSTONE_LIB_PATH_64}/libcapstone.dylib)
-#target_link_libraries(${PROJECT_NAME} optimized ${CAPSTONE_LIB_PATH_64}/libcapstone.dylib)
-#elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-    # 32 bits
+target_link_libraries(PolyHook_2 PUBLIC capstone-static)
 
-	#Link the capstone lib according to config mode
-	target_link_libraries(${PROJECT_NAME} debug ${CAPSTONE_LIB_PATH_86}/libcapstone.4.0.0.dylib)
-	target_link_libraries(${PROJECT_NAME} optimized ${CAPSTONE_LIB_PATH_86}/libcapstone.4.0.0.dylib)
-#endif()
+target_link_libraries(TestRunner PUBLIC capstone-static)

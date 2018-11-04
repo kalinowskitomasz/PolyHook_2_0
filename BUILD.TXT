@@ -1,0 +1,17 @@
+cmake build command:
+
+cmake -S PolyHook_2_0 -B_builds -DCMAKE_BUILD_TYPE=Debug
+
+add flag for shared library -DBUILD_SHARED_LIBS=ON
+
+then:
+
+cmake --build _builds --target TestRunner
+
+or 
+
+cmake --build _builds --target PolyHook_2_0 --CMAKE_SHARED
+
+for 32 bit set flags:
+-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32
+
