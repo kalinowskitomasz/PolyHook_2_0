@@ -2,6 +2,7 @@
 // Created by steve on 7/4/17.
 //
 #include <Catch.hpp>
+#include "headers/IHook.hpp"
 #include "headers/Detour/x86Detour.hpp"
 #include "headers/CapstoneDisassembler.hpp"
 
@@ -64,15 +65,16 @@ b:  7f f4                   jg     0x1
 */
 unsigned char hookMe3[] = {0x55, 0x89, 0xE5, 0x89, 0xE5, 0x89, 0xE5, 0x89, 0xE5, 0x90, 0x90, 0x7F, 0xF4};
 
-NOINLINE void __declspec(naked) hookMeLoop() {
-	__asm {
-		xor eax, eax
-		start :
-		inc eax
-			cmp eax, 5
-			jle start
-			ret
-	}
+__attribute__((naked)) NOINLINE void hookMeLoop() {
+	asm (
+		".intel_syntax;"
+		"xor eax, eax;"
+		"start :"
+		"inc eax;"
+			"cmp eax, 5;"
+			"jle start;"
+			"ret;");
+	
 }
 
 uint64_t hookMeLoopTramp = NULL;
@@ -89,7 +91,7 @@ NOINLINE int __cdecl h_hookPrintf(const char* format, ...) {
 	char buffer[512];
 	va_list args;
 	va_start(args, format);
-	vsprintf_s(buffer, format, args);
+	vsprintf(buffer, format, args);
 	va_end(args);
 
 	effects.PeakEffect().trigger();
