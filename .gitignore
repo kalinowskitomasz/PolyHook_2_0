@@ -25,6 +25,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 build/
+_builds/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/PolyHook_2_0
@@ -359,3 +360,5 @@ build\.ninja
 \.ninja_deps
 
 rules\.ninja
+
+\.vs/
