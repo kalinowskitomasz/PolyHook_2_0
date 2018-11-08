@@ -27,7 +27,7 @@ public:
 
 	virtual bool hook() override;
 
-	Mode getArchType() const;
+	Mode getArchType() const override;
 
 	insts_t makeMinimumJump(const uint64_t address, const uint64_t destination, const uint64_t destHolder) const;
 

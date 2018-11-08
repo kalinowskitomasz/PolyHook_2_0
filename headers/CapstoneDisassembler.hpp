@@ -30,7 +30,7 @@ public:
 	~CapstoneDisassembler() {
 		if (m_capHandle)
 			cs_close(&m_capHandle);
-		m_capHandle = NULL;
+		m_capHandle = (size_t)NULL;
 	}
 
 	virtual std::vector<PLH::Instruction>

@@ -184,7 +184,7 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 	PLH::insts_t instsNeedingEntry;
 	PLH::insts_t instsNeedingReloc;
 	do {
-		if (m_trampoline != NULL) {
+		if (m_trampoline != (uint64_t)NULL) {
 			delete[](unsigned char*)m_trampoline;
 			neededEntryCount = (uint8_t)instsNeedingEntry.size();
 		}

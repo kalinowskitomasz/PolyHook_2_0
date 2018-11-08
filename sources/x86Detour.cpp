@@ -3,11 +3,13 @@
 //
 #include "headers/Detour/x86Detour.hpp"
 
-PLH::x86Detour::x86Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis) : PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
+PLH::x86Detour::x86Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+: PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
 
 }
 
-PLH::x86Detour::x86Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis) : PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
+PLH::x86Detour::x86Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+: PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
 
 }
 
@@ -125,7 +127,7 @@ std::optional<PLH::insts_t> PLH::x86Detour::makeTrampoline(insts_t& prologue) {
 	PLH::insts_t instsNeedingEntry;
 	PLH::insts_t instsNeedingReloc;
 	do {
-		if (m_trampoline != NULL) {
+		if (m_trampoline != (uint64_t)NULL) {
 			delete[](unsigned char*)m_trampoline;
 			neededEntryCount = (uint8_t)instsNeedingEntry.size();
 		}

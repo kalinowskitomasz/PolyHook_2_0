@@ -48,8 +48,8 @@ public:
 		assert(fnAddress != 0 && fnCallback != 0);
 		m_fnAddress = fnAddress;
 		m_fnCallback = fnCallback;
-		m_trampoline = NULL;
-		m_trampolineSz = NULL;
+		m_trampoline = (uint64_t)NULL;
+		m_trampolineSz = (uint16_t)NULL;
 		m_hooked = false;
 		m_userTrampVar = userTrampVar;
 	}
@@ -58,15 +58,15 @@ public:
 		assert(fnAddress != nullptr && fnCallback != nullptr);
 		m_fnAddress = (uint64_t)fnAddress;
 		m_fnCallback = (uint64_t)fnCallback;
-		m_trampoline = NULL;
-		m_trampolineSz = NULL;
+		m_trampoline = (uint64_t)NULL;
+		m_trampolineSz = (uint16_t)NULL;
 		m_hooked = false;
 		m_userTrampVar = userTrampVar;
 	}
 
-	virtual bool unHook() override;
+	bool unHook() override;
 
-	virtual HookType getType() const {
+	HookType getType() const override {
 		return HookType::Detour;
 	}
 

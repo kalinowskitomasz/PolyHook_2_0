@@ -27,7 +27,7 @@ public:
 
 	virtual bool hook() override;
 
-	Mode getArchType() const;
+	Mode getArchType() const override;
 
 	insts_t makeJmp(const uint64_t address, const uint64_t destination) const;
 

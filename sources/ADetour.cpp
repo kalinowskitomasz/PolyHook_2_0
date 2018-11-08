@@ -111,13 +111,13 @@ bool PLH::Detour::unHook() {
 	MemoryProtector prot(m_fnAddress, PLH::calcInstsSz(m_originalInsts), ProtFlag::R | ProtFlag::W | ProtFlag::X);
 	m_disasm.writeEncoding(m_originalInsts);
 	
-	if (m_trampoline != NULL) {
+	if (m_trampoline != (uint64_t)NULL) {
 		delete[](char*)m_trampoline;
-		m_trampoline = NULL;
+		m_trampoline = (uint64_t)NULL;
 	}
 
 	if (m_userTrampVar != NULL) {
-		*m_userTrampVar = NULL;
+		*m_userTrampVar = (uint64_t)NULL;
 		m_userTrampVar = NULL;
 	}
 	
