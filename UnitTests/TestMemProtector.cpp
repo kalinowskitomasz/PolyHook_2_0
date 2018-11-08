@@ -1,7 +1,7 @@
 #include "Catch.hpp"
 #include "headers/MemProtector.hpp"
 
-#ifndef NULL
+#ifdef _MSC_VER
 
 TEST_CASE("Test protflag translation", "[MemProtector],[Enums]") {
     SECTION("flags to native") {
