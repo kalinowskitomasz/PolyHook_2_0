@@ -13,8 +13,8 @@
 #ifdef _MSC_VER
 #include <Windows.h>
 #else
+#include <unistd.h>
 #include <sys/mman.h>
-#include <mach/mach.h>
 #endif
 
 #include <iostream>
@@ -60,8 +60,12 @@ private:
 		status = VirtualProtect((char*)address, (SIZE_T)length, dwProt, &orig) != 0;
         #else
         int orig=0x7;
-        auto d = (unsigned long *) ((int64_t) address &~(PAGE_SIZE-1));
-        int error = mprotect((void*)d, (size_t)PAGE_SIZE, prot);
+        long pagesize;
+        
+        pagesize = sysconf(_SC_PAGESIZE);
+        auto d = (void *)((long)address & ~(pagesize - 1));
+        
+        int error = mprotect((void*)d, (size_t)pagesize, prot);
         if (error != 0)
         {
             
