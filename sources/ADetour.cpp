@@ -1,5 +1,14 @@
 #include "headers/Detour/ADetour.hpp"
 
+PLH::Detour::~Detour() {
+	try {
+		unHook();
+	}
+	catch(...) {
+		std::cout << "Unhooking failed \n";
+	}
+}
+
 std::optional<PLH::insts_t> PLH::Detour::calcNearestSz(const PLH::insts_t& functionInsts, const uint64_t prolOvrwStartOffset,
 													   uint64_t& prolOvrwEndOffset) {
 
@@ -104,7 +113,7 @@ void PLH::Detour::buildRelocationList(insts_t& prologue, const uint64_t roundPro
 			}
 		}
 		else if(inst.hasDisplacement() && inst.isDisplacementRelative() &&
-				(inst.getDestination() < prolStart ||inst.getDestination() > prolStart + roundProlSz)) {
+				(inst.getDestination() < prolStart || inst.getDestination() > prolStart + roundProlSz)) {
 			instsNeedingReloc.push_back(inst);
 		}
 	}

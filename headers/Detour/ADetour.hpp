@@ -42,9 +42,10 @@ T FnCast(void* fnToCast, T pFnCastTo) {
 	return (T)fnToCast;
 }
 
-class Detour : public PLH::IHook {
+class Detour : public IHook {
 public:
-	Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis) : m_disasm(dis) {
+	Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+	: m_disasm(dis) {
 		assert(fnAddress != 0 && fnCallback != 0);
 		m_fnAddress = fnAddress;
 		m_fnCallback = fnCallback;
@@ -54,7 +55,8 @@ public:
 		m_userTrampVar = userTrampVar;
 	}
 
-	Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis) : m_disasm(dis) {
+	Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+	: m_disasm(dis) {
 		assert(fnAddress != nullptr && fnCallback != nullptr);
 		m_fnAddress = (uint64_t)fnAddress;
 		m_fnCallback = (uint64_t)fnCallback;
@@ -63,6 +65,8 @@ public:
 		m_hooked = false;
 		m_userTrampVar = userTrampVar;
 	}
+	
+	~Detour() override;
 
 	bool unHook() override;
 
@@ -100,7 +104,11 @@ protected:
 							uint64_t& minProlSz,
 							uint64_t& roundProlSz);
 
-	void buildRelocationList(insts_t& prologue, const uint64_t roundProlSz, const int64_t delta, PLH::insts_t &instsNeedingEntry, PLH::insts_t &instsNeedingReloc);
+	void buildRelocationList(insts_t& prologue,
+							 const uint64_t roundProlSz,
+							 const int64_t delta,
+							 PLH::insts_t &instsNeedingEntry,
+							 PLH::insts_t &instsNeedingReloc);
 
 	PLH::insts_t relocateTrampoline(insts_t& prologue,
 									uint64_t jmpTblStart,

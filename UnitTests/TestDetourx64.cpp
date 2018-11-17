@@ -2,14 +2,10 @@
 // Created by steve on 7/9/18.
 //
 #include <Catch.hpp>
-#include "headers/Detour/X64Detour.hpp"
+#include "headers/Detour/x64Detour.hpp"
 #include "headers/CapstoneDisassembler.hpp"
 
-#include "headers/tests/TestEffectTracker.hpp"
-
-#ifndef _MSC_VER
-#define NOINLINE __attribute__ ((noinline))
-#endif
+#include "headers/Tests/TestEffectTracker.hpp"
 
 EffectTracker effects;
 
@@ -78,11 +74,16 @@ NOINLINE void h_nullstub() {
 
 #include <stdlib.h>
 uint64_t hookMallocTramp = NULL;
-NOINLINE void* h_hookMalloc(size_t size) {
+NOINLINE void* h_hookMalloc(size_t size, size_t size2) {
 	volatile int i = 0;
-	effects.PeakEffect().trigger();
-
-	return PLH::FnCast(hookMallocTramp, &malloc)(size);
+    volatile int var2 = 0;
+    volatile int var3 = 0;
+    i = var2 + var3;
+	//effects.PeakEffect().trigger();
+    if (hookMallocTramp)
+        return PLH::FnCast(hookMallocTramp, &calloc)(size, size2);
+    else
+        return 0;
 }
 
 TEST_CASE("Testing 64 detours", "[x64Detour],[ADetour]") {
@@ -90,8 +91,19 @@ TEST_CASE("Testing 64 detours", "[x64Detour],[ADetour]") {
 
 	SECTION("Normal function") {
 		PLH::x64Detour detour((char*)&hookMe1, (char*)&h_hookMe1, &hookMe1Tramp, dis);
+		hookMe1();
 		REQUIRE(detour.hook() == true);
 
+		effects.PushEffect();
+		hookMe1();
+		REQUIRE(effects.PopEffect().didExecute());
+	}
+	
+	SECTION("Normal function2") {
+		PLH::x64Detour detour((char*)&hookMe1, (char*)&h_hookMe1, &hookMe1Tramp, dis);
+		hookMe1();
+		REQUIRE(detour.hook() == true);
+		
 		effects.PushEffect();
 		hookMe1();
 		REQUIRE(effects.PopEffect().didExecute());
@@ -116,16 +128,19 @@ TEST_CASE("Testing 64 detours", "[x64Detour],[ADetour]") {
 		REQUIRE(detour.hook() == true);
 	}
 
-	SECTION("hook malloc") {
-		PLH::x64Detour detour((char*)&malloc, (char*)&h_hookMalloc, &hookMallocTramp, dis);
-		effects.PushEffect(); // catch does some allocations, push effect first so peak works
-		bool result = detour.hook();
-
-		REQUIRE(result == true);
-
-		void* pMem = malloc(16);
-		free(pMem);
-		detour.unHook(); // unhook so we can popeffect safely w/o catch allocation happening again
-		REQUIRE(effects.PopEffect().didExecute());
-	}
+//	SECTION("hook malloc") {
+//        //effects.PushEffect();
+//        void* a = calloc(16, 16);
+//        h_hookMalloc(10, 10);
+//		PLH::x64Detour detour((char*)&calloc, (char*)&h_hookMalloc, &hookMallocTramp, dis);
+//		//effects.PushEffect(); // catch does some allocations, push effect first so peak works
+//		bool result = detour.hook();
+//
+//		REQUIRE(result == true);
+//
+//		void* pMem = calloc(16, 16);
+//		free(pMem);
+//		detour.unHook(); // unhook so we can popeffect safely w/o catch allocation happening again
+//		REQUIRE(effects.PopEffect().didExecute());
+//	}
 }

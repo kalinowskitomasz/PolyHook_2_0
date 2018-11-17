@@ -58,6 +58,12 @@ PLH::CapstoneDisassembler::disassemble(uint64_t firstInstruction, uint64_t start
 	return InsVec;
 }
 
+PLH::CapstoneDisassembler::~CapstoneDisassembler() {
+	if (m_capHandle)
+		cs_close(&m_capHandle);
+	m_capHandle = (size_t)NULL;
+}
+
 /**Write the raw bytes of the given instruction into the memory specified by the
  * instruction's address. If the address value of the instruction has been changed
  * since the time it was decoded this will copy the instruction to a new memory address.
@@ -67,6 +73,12 @@ PLH::CapstoneDisassembler::disassemble(uint64_t firstInstruction, uint64_t start
  * writeEncoding(). It is done this way so that these operations can be made transactional**/
 void PLH::CapstoneDisassembler::writeEncoding(const PLH::Instruction& instruction) const {
 	memcpy((void*)instruction.getAddress(), &instruction.getBytes()[0], instruction.size());
+}
+
+void PLH::CapstoneDisassembler::writeEncoding(const PLH::insts_t& instructions) const {
+	for (const auto& inst : instructions) {
+		writeEncoding(inst);
+	}
 }
 
 /**If an instruction is a jmp/call variant type this will set it's displacement fields to the
@@ -195,4 +207,38 @@ bool PLH::CapstoneDisassembler::isFuncEnd(const PLH::Instruction& instruction) c
 	* 0xFEEEFEEE : Used by Microsoft's HeapFree() to mark freed heap memory
 	*/
 	return instruction.getMnemonic() == "ret";
+}
+
+branch_map_t getBranchMap() const {
+	return m_branchMap;
+}
+
+x86_reg PLH::CapstoneDisassembler::getIpReg() const {
+	if (m_mode == PLH::Mode::x64)
+		return X86_REG_RIP;
+	else //if(m_Mode == PLH::ADisassembler::Mode::x86)
+		return X86_REG_EIP;
+}
+
+bool PLH::CapstoneDisassembler::hasGroup(const std::shared_ptr<cs_insn>& inst, const x86_insn_group grp) const {
+	uint8_t GrpSize = inst->detail->groups_count;
+	
+	for (int i = 0; i < GrpSize; i++) {
+		if (inst->detail->groups[i] == grp)
+			return true;
+	}
+	return false;
+}
+
+typename PLH::branch_map_t::mapped_type& PLH::CapstoneDisassembler::updateBranchMap(uint64_t key, const Instruction& new_val) {
+	branch_map_t::iterator it = m_branchMap.find(key);
+	if (it != m_branchMap.end()) {
+		it->second.push_back(new_val);
+	} else {
+		branch_map_t::mapped_type s;
+		s.push_back(new_val);
+		m_branchMap.emplace(key, s);
+		return m_branchMap.at(key);
+	}
+	return it->second;
 }

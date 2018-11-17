@@ -25,6 +25,8 @@ public:
 
 	x64Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis);
 
+	~x64Detour() override {}
+	
 	virtual bool hook() override;
 
 	Mode getArchType() const override;

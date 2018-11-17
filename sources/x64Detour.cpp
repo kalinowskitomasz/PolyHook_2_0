@@ -3,11 +3,13 @@
 //
 #include "headers/Detour/x64Detour.hpp"
 
-PLH::x64Detour::x64Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis) : PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
+PLH::x64Detour::x64Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+: PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
 
 }
 
-PLH::x64Detour::x64Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis) : PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
+PLH::x64Detour::x64Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+: PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
 
 }
 
@@ -212,13 +214,11 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 	}
 
 	// each jmp tbl entries holder is one slot down from the previous
-	auto calcJmpHolder = [=] () -> uint64_t {
-		static uint64_t captureAddr = jmpHolderCurAddr;
+	uint64_t captureAddr = jmpHolderCurAddr;
+	auto makeJmpFn = [&](const uint64_t address, const uint64_t destination) {
 		captureAddr -= destHldrSz;
-		return captureAddr;
+		return makeMinimumJump(address, destination, captureAddr);
 	};
-
-	auto makeJmpFn = std::bind(&x64Detour::makeMinimumJump, this, _1, _2, std::bind(calcJmpHolder));
 
 	uint64_t jmpTblStart = jmpToProlAddr + getMinJmpSize();
 	PLH::insts_t jmpTblEntries = relocateTrampoline(prologue, jmpTblStart, delta, getMinJmpSize(),
