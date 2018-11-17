@@ -89,7 +89,8 @@ void PLH::Detour::buildRelocationList(insts_t& prologue, const uint64_t roundPro
 	const uint64_t prolStart = prologue.front().getAddress();
 
 	for (auto& inst : prologue) {
-		if (inst.isBranching() && inst.hasDisplacement() &&
+		// todo: fix
+		if ((inst.isBranching() && inst.hasDisplacement()) &&
 			(inst.getDestination() < prolStart ||
 			inst.getDestination() > prolStart + roundProlSz)) {
 
@@ -101,6 +102,10 @@ void PLH::Detour::buildRelocationList(insts_t& prologue, const uint64_t roundPro
 			} else {
 				instsNeedingReloc.push_back(inst);
 			}
+		}
+		else if(inst.hasDisplacement() && inst.isDisplacementRelative() &&
+				(inst.getDestination() < prolStart ||inst.getDestination() > prolStart + roundProlSz)) {
+			instsNeedingReloc.push_back(inst);
 		}
 	}
 }
@@ -123,4 +128,37 @@ bool PLH::Detour::unHook() {
 	
 	m_hooked = false;
 	return true;
+}
+
+PLH::insts_t PLH::Detour::relocateTrampoline(insts_t& prologue, uint64_t jmpTblStart, const int64_t delta, const uint8_t jmpSz,
+											 std::function<PLH::insts_t(const uint64_t, const uint64_t)> makeJmp,
+											 const PLH::insts_t& instsNeedingReloc, const PLH::insts_t& instsNeedingEntry) {
+	uint64_t jmpTblCurAddr = jmpTblStart;
+	insts_t jmpTblEntries;
+	for (auto& inst : prologue) {
+		if (std::find(instsNeedingEntry.begin(), instsNeedingEntry.end(), inst) != instsNeedingEntry.end()) {
+			assert(inst.hasDisplacement());
+			// make an entry pointing to where inst did point to
+			auto entry = makeJmp(jmpTblCurAddr, inst.getDestination());
+			
+			// move inst to trampoline and point instruction to entry
+			inst.setAddress(inst.getAddress() + delta);
+			inst.setDestination(jmpTblCurAddr);
+			jmpTblCurAddr += jmpSz;
+			
+			m_disasm.writeEncoding(entry);
+			jmpTblEntries.insert(jmpTblEntries.end(), entry.begin(), entry.end());
+		} else if (std::find(instsNeedingReloc.begin(), instsNeedingReloc.end(), inst) != instsNeedingReloc.end()) {
+			assert(inst.hasDisplacement());
+			
+			const uint64_t instsOldDest = inst.getDestination();
+			inst.setAddress(inst.getAddress() + delta);
+			inst.setDestination(instsOldDest);
+		} else {
+			inst.setAddress(inst.getAddress() + delta);
+		}
+		
+		m_disasm.writeEncoding(inst);
+	}
+	return jmpTblEntries;
 }

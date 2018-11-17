@@ -102,44 +102,16 @@ protected:
 
 	void buildRelocationList(insts_t& prologue, const uint64_t roundProlSz, const int64_t delta, PLH::insts_t &instsNeedingEntry, PLH::insts_t &instsNeedingReloc);
 
-	template<typename MakeJmpFn>
-	PLH::insts_t relocateTrampoline(insts_t& prologue, uint64_t jmpTblStart, const int64_t delta, const uint8_t jmpSz, MakeJmpFn makeJmp, const PLH::insts_t& instsNeedingReloc, const PLH::insts_t& instsNeedingEntry);
+	PLH::insts_t relocateTrampoline(insts_t& prologue,
+									uint64_t jmpTblStart,
+									const int64_t delta,
+									const uint8_t jmpSz,
+									std::function<PLH::insts_t(const uint64_t, const uint64_t)> makeJmp,
+									const PLH::insts_t& instsNeedingReloc,
+									const PLH::insts_t& instsNeedingEntry);
 
 	bool                    m_hooked;
 };
-
-template<typename MakeJmpFn>
-PLH::insts_t PLH::Detour::relocateTrampoline(insts_t& prologue, uint64_t jmpTblStart, const int64_t delta, const uint8_t jmpSz, MakeJmpFn makeJmp, const PLH::insts_t& instsNeedingReloc, const PLH::insts_t& instsNeedingEntry) {
-	uint64_t jmpTblCurAddr = jmpTblStart;
-	insts_t jmpTblEntries;
-	for (auto& inst : prologue) {
-
-		if (std::find(instsNeedingEntry.begin(), instsNeedingEntry.end(), inst) != instsNeedingEntry.end()) {
-			assert(inst.hasDisplacement());
-			// make an entry pointing to where inst did point to
-			auto entry = makeJmp(jmpTblCurAddr, inst.getDestination());
-
-			// move inst to trampoline and point instruction to entry
-			inst.setAddress(inst.getAddress() + delta);
-			inst.setDestination(jmpTblCurAddr);
-			jmpTblCurAddr += jmpSz;
-
-			m_disasm.writeEncoding(entry);
-			jmpTblEntries.insert(jmpTblEntries.end(), entry.begin(), entry.end());
-		} else if (std::find(instsNeedingReloc.begin(), instsNeedingReloc.end(), inst) != instsNeedingReloc.end()) {
-			assert(inst.hasDisplacement());
-
-			const uint64_t instsOldDest = inst.getDestination();
-			inst.setAddress(inst.getAddress() + delta);
-			inst.setDestination(instsOldDest);
-		} else {
-			inst.setAddress(inst.getAddress() + delta);
-		}
-
-		m_disasm.writeEncoding(inst);
-	}
-	return jmpTblEntries;
-}
 
 /** Before Hook:                                                After hook:
 *

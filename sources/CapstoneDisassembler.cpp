@@ -11,12 +11,13 @@
 
 PLH::insts_t
 PLH::CapstoneDisassembler::disassemble(uint64_t firstInstruction, uint64_t start, uint64_t End) {
-	cs_insn* InsInfo = cs_malloc(m_capHandle);
+    auto InsInfo = std::shared_ptr<cs_insn>(cs_malloc(m_capHandle),
+                                            [](cs_insn* insn){cs_free(insn, 1);});
 	insts_t InsVec;
 	m_branchMap.clear();
 
 	uint64_t Size = End - start;
-	while (cs_disasm_iter(m_capHandle, (const uint8_t**)&firstInstruction, (size_t*)&Size, &start, InsInfo)) {
+	while (cs_disasm_iter(m_capHandle, (const uint8_t**)&firstInstruction, (size_t*)&Size, &start, InsInfo.get())) {
 		// Set later by 'SetDisplacementFields'
 		Instruction::Displacement displacement;
 		displacement.Absolute = 0;
@@ -53,7 +54,7 @@ PLH::CapstoneDisassembler::disassemble(uint64_t firstInstruction, uint64_t start
 			}
 		}
 	}
-	cs_free(InsInfo, 1);
+	
 	return InsVec;
 }
 
@@ -73,9 +74,10 @@ void PLH::CapstoneDisassembler::writeEncoding(const PLH::Instruction& instructio
  * this determines if an instruction is a jmp/call variant, and then further if it is is jumping via
  * memory or immediate, and then finally if that mem/imm is encoded via a displacement relative to
  * the instruction pointer, or directly to an absolute address**/
-void PLH::CapstoneDisassembler::setDisplacementFields(PLH::Instruction& inst, const cs_insn* capInst) const {
+void PLH::CapstoneDisassembler::setDisplacementFields(PLH::Instruction& inst,
+                                                      const std::shared_ptr<cs_insn>& capInst) const {
 	cs_x86 x86 = capInst->detail->x86;
-	bool branches = hasGroup(capInst, x86_insn_group::X86_GRP_JUMP) || hasGroup(capInst, x86_insn_group::X86_GRP_CALL);
+	bool branches = hasGroup(capInst, x86_insn_group::X86_GRP_JUMP) || hasGroup(capInst, x86_insn_group::X86_GRP_CALL) /* || hasGroup(capInst, x86_insn_group::X86_GRP_BRANCH_RELATIVE) */;
 	inst.setBranching(branches);
 
 	for (uint_fast32_t j = 0; j < x86.op_count; j++) {

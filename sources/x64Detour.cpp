@@ -149,7 +149,6 @@ bool PLH::x64Detour::hook() {
 	std::cout << "Prologue to overwrite:" << std::endl << prologue << std::endl;
 
 	{   // copy all the prologue stuff to trampoline
-		auto makeJmpFn = std::bind(&x64Detour::makePreferredJump, this, _1, _2, _3);
 		auto jmpTblOpt = makeTrampoline(prologue);
 
 		std::cout << "Trampoline:" << std::endl << m_disasm.disassemble(m_trampoline, m_trampoline, m_trampoline + m_trampolineSz) << std::endl;

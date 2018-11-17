@@ -27,7 +27,7 @@ namespace PLH {
 class Instruction {
 public:
 	union Displacement {
-		int64_t  Relative;
+		int64_t  Relative = 0;
 		uint64_t Absolute;
 	};
 
@@ -75,7 +75,7 @@ public:
 	}
 
 	void setDestination(const uint64_t dest) {
-		if (!isBranching() || !hasDisplacement())
+		if (!isBranching() && !hasDisplacement())
 			return;
 
 		if (isDisplacementRelative()) {
@@ -279,18 +279,15 @@ inline uint16_t calcInstsSz(const insts_t& insts) {
 	return sz;
 }
 
-template <typename T>
-inline std::ostream& printInsts(std::ostream& out, const T& container) {
-	for (auto ii = container.cbegin(); ii != container.cend(); ++ii) {
-		out << *ii << std::endl;
+
+inline std::ostream& printInsts(std::ostream& out, const std::vector<Instruction>& v) {
+    for (const auto& inst: v) {
+		out << inst << std::endl;
 	}
 	return out;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const std::vector<Instruction>& v) { return printInsts(os, v); }
-//std::ostream& operator<<(std::ostream& os, const std::deque<X>& v) { return printInsts(os, v); }
-//std::ostream& operator<<(std::ostream& os, const std::list<X>& v) { return printInsts(os, v); }
-//std::ostream& operator<<(std::ostream& os, const std::set<X>& v) { return printInsts(os, v); }
-//std::ostream& operator<<(std::ostream& os, const std::multiset<X>& v) { return printInsts(os, v); }
+inline std::ostream& operator<<(std::ostream& os, const std::vector<Instruction>& v){ return printInsts(os, v); }
+
 }
 #endif //POLYHOOK_2_0_INSTRUCTION_HPP
