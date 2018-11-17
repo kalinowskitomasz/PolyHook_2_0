@@ -209,7 +209,7 @@ bool PLH::CapstoneDisassembler::isFuncEnd(const PLH::Instruction& instruction) c
 	return instruction.getMnemonic() == "ret";
 }
 
-branch_map_t getBranchMap() const {
+PLH::branch_map_t PLH::CapstoneDisassembler::getBranchMap() const {
 	return m_branchMap;
 }
 
