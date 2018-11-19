@@ -54,7 +54,44 @@ std::ostream& operator<<(std::ostream& os, const PLH::ProtFlag flags) {
     return os;
 }
 
+PLH::MemoryProtector::MemoryProtector(const uint64_t address, const uint64_t length, const PLH::ProtFlag prot,
+									  bool unsetOnDestroy /*= true */)
+: m_origProtection(protect(address, length, TranslateProtection(prot)))
+, m_address(address)
+, m_length(length)
+, m_unsetLater(unsetOnDestroy)
+
+{
+	
+	m_origProtection = PLH::ProtFlag::UNSET;
+	m_origProtection = protect(address, length, TranslateProtection(prot));
+}
+
+PLH::ProtFlag PLH::MemoryProtector::originalProt() {
+	return m_origProtection;
+}
+
+bool PLH::MemoryProtector::isGood() {
+	return m_status;
+}
+
+PLH::MemoryProtector::~MemoryProtector() {
+	if (m_origProtection == PLH::ProtFlag::UNSET || !m_unsetLater || !isGood())
+		return;
+	
+	protect(m_address, m_length, TranslateProtection(m_origProtection));
+}
+
+
 #ifdef _MSC_VER
+
+PLH::ProtFlag PLH::MemoryProtector::protect(const uint64_t address, const uint64_t length, int prot) {
+	DWORD orig;
+	DWORD dwProt = prot;
+	m_status = VirtualProtect((char*)address, (SIZE_T)length, dwProt, &orig) != 0;
+	return TranslateProtection(orig);
+}
+
 int PLH::TranslateProtection(const PLH::ProtFlag flags) {
     int NativeFlag = 0;
     if (flags == PLH::ProtFlag::X)
@@ -109,6 +146,16 @@ PLH::ProtFlag PLH::TranslateProtection(const int prot) {
     return flags;
 }
 #else
+
+PLH::ProtFlag PLH::MemoryProtector::protect(const uint64_t address, const uint64_t length, int prot) {
+	int orig=0x7;
+	long pagesize;
+	pagesize = sysconf(_SC_PAGESIZE);
+	auto d = (void *)((long)address & ~(pagesize - 1));
+	m_status = mprotect((void*)d, (size_t)pagesize, prot) !=0;
+	return TranslateProtection(orig);
+}
+
 int PLH::TranslateProtection(const PLH::ProtFlag flags)
 {
     return static_cast<int>(flags);

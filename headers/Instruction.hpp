@@ -37,11 +37,16 @@ public:
 				const bool isRelative,
 				const std::vector<uint8_t>& bytes,
 				const std::string& mnemonic,
-				const std::string& opStr,
-				Mode mode) : m_uid(UID::singleton()) {
-
-		Init(address, displacement, displacementOffset, isRelative, bytes, mnemonic, opStr, false, m_uid, mode);
-	}
+				const std::string& opStr)
+	: m_address(address)
+	, m_displacement(displacement)
+	, m_dispOffset(displacementOffset)
+	, m_isRelative(isRelative)
+	, m_hasDisplacement(false)
+	, m_bytes(bytes)
+	, m_mnemonic(mnemonic)
+	, m_opStr(opStr)
+	, m_uid(UID::singleton()) {}
 
 	Instruction(uint64_t address,
 				const Displacement& displacement,
@@ -50,18 +55,9 @@ public:
 				uint8_t bytes[],
 				size_t arrLen,
 				const std::string& mnemonic,
-				const std::string& opStr,
-				Mode mode) : m_uid(UID::singleton()) {
-
-		std::vector<uint8_t> Arr(bytes, bytes + arrLen);
-		Init(address, displacement, displacementOffset, isRelative, Arr, mnemonic, opStr, false, m_uid, mode);
-	}
-
-	Instruction& operator=(const Instruction& rhs) {
-		Init(rhs.m_address, rhs.m_displacement, rhs.m_dispOffset, rhs.m_isRelative,
-			 rhs.m_bytes, rhs.m_mnemonic, rhs.m_opStr, rhs.m_hasDisplacement, rhs.m_uid, rhs.m_mode);
-		return *this;
-	}
+				const std::string& opStr)
+	: Instruction(address, displacement, displacementOffset, isRelative, std::vector<uint8_t>{bytes, bytes + arrLen}, mnemonic, opStr)
+	{}
 
 	/**Get the address of where the instruction points if it's a branching instruction
 	* @Notes: Handles eip/rip & immediate branches correctly
@@ -182,7 +178,7 @@ public:
 	}
 
 	void setAbsoluteDisplacement(const uint64_t displacement) {
-		/**Update our class' book-keeping of this stuff and then modify the byte array.
+		/** Update our class' book-keeping of this stuff and then modify the byte array.
 		* This doesn't actually write the changes to the executeable code, it writes to our
 		* copy of the bytes**/
 		m_displacement.Absolute = displacement;
@@ -210,30 +206,6 @@ public:
 		return (T)(to - (from + insSize));
 	}
 private:
-	void Init(const uint64_t address,
-			  const Displacement& displacement,
-			  const uint8_t displacementOffset,
-			  const bool isRelative,
-			  const std::vector<uint8_t>& bytes,
-			  const std::string& mnemonic,
-			  const std::string& opStr,
-			  const bool hasDisp,
-			  const UID id,
-			  Mode mode) {
-		m_address = address;
-		m_displacement = displacement;
-		m_dispOffset = displacementOffset;
-		m_isRelative = isRelative;
-		m_hasDisplacement = hasDisp;
-
-		m_bytes = bytes;
-		m_mnemonic = mnemonic;
-		m_opStr = opStr;
-
-		m_uid = id;
-		m_mode = mode;
-	}
-
 	uint64_t     m_address;       //Address the instruction is at
 	Displacement m_displacement;  //Where an instruction points too (valid for jmp + call types)
 	uint8_t      m_dispOffset;    //Offset into the byte array where displacement is encoded
@@ -244,9 +216,6 @@ private:
 	std::vector<uint8_t> m_bytes; //All the raw bytes of this instruction
 	std::string          m_mnemonic; //If you don't know what these two are then gtfo of this source code :)
 	std::string          m_opStr;
-
-	Mode m_mode;
-
 	UID m_uid;
 };
 

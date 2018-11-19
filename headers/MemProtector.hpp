@@ -29,57 +29,18 @@ ProtFlag TranslateProtection(const int prot);
 
 class MemoryProtector {
 public:
-	MemoryProtector(const uint64_t address, const uint64_t length, const PLH::ProtFlag prot, bool unsetOnDestroy = true) {
-		m_address = address;
-		m_length = length;
-		unsetLater = unsetOnDestroy;
-
-		m_origProtection = PLH::ProtFlag::UNSET;
-		m_origProtection = protect(address, length, TranslateProtection(prot));
-	}
-
-	PLH::ProtFlag originalProt() {
-		return m_origProtection;
-	}
-
-	bool isGood() {
-		return status;
-	}
-
-	~MemoryProtector() {
-		if (m_origProtection == PLH::ProtFlag::UNSET || !unsetLater)
-			return;
-
-		protect(m_address, m_length, TranslateProtection(m_origProtection));
-	}
+	MemoryProtector(const uint64_t address, const uint64_t length, const PLH::ProtFlag prot, bool unsetOnDestroy = true);
+	~MemoryProtector();
+	PLH::ProtFlag originalProt();
+	bool isGood();
 private:
-	PLH::ProtFlag protect(const uint64_t address, const uint64_t length, int prot) {
-        #ifdef _MSC_VER
-		DWORD orig;
-		DWORD dwProt = prot;
-		status = VirtualProtect((char*)address, (SIZE_T)length, dwProt, &orig) != 0;
-        #else
-        int orig=0x7;
-        long pagesize;
-        
-        pagesize = sysconf(_SC_PAGESIZE);
-        auto d = (void *)((long)address & ~(pagesize - 1));
-        
-        int error = mprotect((void*)d, (size_t)pagesize, prot);
-        if (error != 0)
-        {
-            
-        }
-        #endif
-		return TranslateProtection(orig);
-	}
+	PLH::ProtFlag protect(const uint64_t address, const uint64_t length, int prot);
 
-	PLH::ProtFlag m_origProtection;
-
+	PLH::ProtFlag m_origProtection = PLH::ProtFlag::UNSET;
 	uint64_t m_address;
 	uint64_t m_length;
-	bool status;
-	bool unsetLater;
+	bool m_status;
+	bool m_unsetLater;
 };
 }
 #endif //POLYHOOK_2_MEMORYPROTECTOR_HPP

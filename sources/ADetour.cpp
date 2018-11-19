@@ -1,5 +1,19 @@
 #include "headers/Detour/ADetour.hpp"
 
+PLH::Detour::Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+: m_disasm(dis) {
+	assert(fnAddress != 0 && fnCallback != 0);
+	m_fnAddress = fnAddress;
+	m_fnCallback = fnCallback;
+	m_trampoline = (uint64_t)NULL;
+	m_trampolineSz = (uint16_t)NULL;
+	m_hooked = false;
+	m_userTrampVar = userTrampVar;
+}
+
+PLH::Detour::Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+: Detour((uint64_t)fnAddress, (uint64_t)fnCallback, userTrampVar, dis) {}
+
 PLH::Detour::~Detour() {
 	try {
 		unHook();

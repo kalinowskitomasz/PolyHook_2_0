@@ -28,7 +28,7 @@ PLH::insts_t PLH::x64Detour::makeMinimumJump(const uint64_t address, const uint6
 	std::vector<uint8_t> destBytes;
 	destBytes.resize(8);
 	memcpy(destBytes.data(), &destination, 8);
-	Instruction specialDest(destHolder, disp, 0, false, destBytes, "dest holder", "", Mode::x64);
+	Instruction specialDest(destHolder, disp, 0, false, destBytes, "dest holder", "");
 
 	std::vector<uint8_t> bytes;
 	bytes.resize(6);
@@ -39,7 +39,7 @@ PLH::insts_t PLH::x64Detour::makeMinimumJump(const uint64_t address, const uint6
 	std::stringstream ss;
 	ss << std::hex << "[" << destHolder << "] ->" << destination;
 
-	return {Instruction(address, disp, 2, true, bytes, "jmp", ss.str(), Mode::x64),  specialDest};
+	return {Instruction(address, disp, 2, true, bytes, "jmp", ss.str()),  specialDest};
 }
 
 /**Write a 25 byte absolute jump. This is preferred since it doesn't require an indirect memory holder.
@@ -55,7 +55,7 @@ PLH::insts_t PLH::x64Detour::makePreferredJump(const uint64_t address, const uin
 						false,
 						raxBytes,
 						"push",
-						"rax", Mode::x64);
+						"rax");
 	curInstAddress += pushRax.size();
 
 	std::stringstream ss;
@@ -68,17 +68,17 @@ PLH::insts_t PLH::x64Detour::makePreferredJump(const uint64_t address, const uin
 	memcpy(&movRaxBytes[2], &destination, 8);
 
 	Instruction movRax(curInstAddress, zeroDisp, 0, false,
-					   movRaxBytes, "mov", "rax, " + ss.str(), Mode::x64);
+					   movRaxBytes, "mov", "rax, " + ss.str());
 	curInstAddress += movRax.size();
 
 	std::vector<uint8_t> xchgBytes = {0x48, 0x87, 0x04, 0x24};
 	Instruction xchgRspRax(curInstAddress, zeroDisp, 0, false,
-						   xchgBytes, "xchg", "QWORD PTR [rsp],rax", Mode::x64);
+						   xchgBytes, "xchg", "QWORD PTR [rsp],rax");
 	curInstAddress += xchgRspRax.size();
 
 	std::vector<uint8_t> retBytes = {0xC3};
 	Instruction ret(curInstAddress, zeroDisp, 0, false,
-					retBytes, "ret", "", Mode::x64);
+					retBytes, "ret", "");
 	curInstAddress += ret.size();
 
 	return {pushRax, movRax, xchgRspRax, ret};

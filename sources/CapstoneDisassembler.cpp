@@ -2,11 +2,12 @@
 // Created by steve on 7/5/17.
 //
 #include "headers/CapstoneDisassembler.hpp"
+
 #ifdef _MSC_VER
-#define DEBUG_BREAK __debugbreak()
+	#define DEBUG_BREAK __debugbreak()
 #else
-#include <signal.h>
-#define DEBUG_BREAK raise(SIGTRAP);
+	#include <signal.h>
+	#define DEBUG_BREAK raise(SIGTRAP);
 #endif
 
 PLH::insts_t
@@ -29,8 +30,7 @@ PLH::CapstoneDisassembler::disassemble(uint64_t firstInstruction, uint64_t start
 						 InsInfo->bytes,
 						 InsInfo->size,
 						 InsInfo->mnemonic,
-						 InsInfo->op_str,
-						 m_mode);
+						 InsInfo->op_str);
 
 		setDisplacementFields(Inst, InsInfo);
 		InsVec.push_back(Inst);

@@ -39,6 +39,10 @@ public:
 
 	uint8_t getPrefJmpSize() const;
 private:
+	void extracted(uint8_t destHldrSz, PLH::insts_t &instsNeedingEntry, PLH::insts_t &instsNeedingReloc, uint64_t prolStart, uint16_t prolSz, PLH::insts_t &prologue);
+	
+	void extracted(const int64_t &delta, uint8_t destHldrSz, PLH::insts_t &instsNeedingEntry, PLH::insts_t &instsNeedingReloc, const uint64_t &jmpHolderCurAddr, const uint64_t &jmpToProlAddr, uint64_t prolStart, uint16_t prolSz, PLH::insts_t &prologue);
+	
 	std::optional<insts_t> makeTrampoline(insts_t& prologue);
 };
 }

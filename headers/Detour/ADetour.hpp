@@ -44,27 +44,8 @@ T FnCast(void* fnToCast, T pFnCastTo) {
 
 class Detour : public IHook {
 public:
-	Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
-	: m_disasm(dis) {
-		assert(fnAddress != 0 && fnCallback != 0);
-		m_fnAddress = fnAddress;
-		m_fnCallback = fnCallback;
-		m_trampoline = (uint64_t)NULL;
-		m_trampolineSz = (uint16_t)NULL;
-		m_hooked = false;
-		m_userTrampVar = userTrampVar;
-	}
-
-	Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
-	: m_disasm(dis) {
-		assert(fnAddress != nullptr && fnCallback != nullptr);
-		m_fnAddress = (uint64_t)fnAddress;
-		m_fnCallback = (uint64_t)fnCallback;
-		m_trampoline = (uint64_t)NULL;
-		m_trampolineSz = (uint16_t)NULL;
-		m_hooked = false;
-		m_userTrampVar = userTrampVar;
-	}
+	Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis);
+	Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis);
 	
 	~Detour() override;
 
@@ -76,15 +57,6 @@ public:
 
 	virtual Mode getArchType() const = 0;
 protected:
-	uint64_t                m_fnAddress;
-	uint64_t                m_fnCallback;
-	uint64_t				m_trampoline;
-	uint16_t			    m_trampolineSz;
-	uint64_t*				m_userTrampVar;
-	ADisassembler&			m_disasm;
-
-	PLH::insts_t			m_originalInsts;
-
 	/**Walks the given vector of instructions and sets roundedSz to the lowest size possible that doesn't split any instructions and is greater than minSz.
 	If end of function is encountered before this condition an empty optional is returned. Returns instructions in the range start to adjusted end**/
 	std::optional<insts_t> calcNearestSz(const insts_t& functionInsts, const uint64_t minSz,
@@ -118,7 +90,14 @@ protected:
 									const PLH::insts_t& instsNeedingReloc,
 									const PLH::insts_t& instsNeedingEntry);
 
-	bool                    m_hooked;
+	uint64_t		m_fnAddress;
+	uint64_t		m_fnCallback;
+	uint64_t		m_trampoline;
+	uint16_t		m_trampolineSz;
+	uint64_t*		m_userTrampVar;
+	ADisassembler&	m_disasm;
+	PLH::insts_t	m_originalInsts;
+	bool 			m_hooked;
 };
 
 /** Before Hook:                                                After hook:
