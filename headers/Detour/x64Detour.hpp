@@ -35,9 +35,6 @@ public:
 
 	insts_t makePreferredJump(const uint64_t address, const uint64_t destination) const;
 
-	uint8_t getMinJmpSize() const;
-
-	uint8_t getPrefJmpSize() const;
 private:
 	void extracted(uint8_t destHldrSz, PLH::insts_t &instsNeedingEntry, PLH::insts_t &instsNeedingReloc, uint64_t prolStart, uint16_t prolSz, PLH::insts_t &prologue);
 	

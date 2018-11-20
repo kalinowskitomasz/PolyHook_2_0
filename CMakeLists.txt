@@ -47,6 +47,7 @@ set(HEADER_FILES ${PROJECT_SOURCE_DIR}/headers/ADisassembler.hpp
 set(HEADER_IMP_SOURCES 
 		${PROJECT_SOURCE_DIR}/sources/CapstoneDisassembler.cpp
 		${PROJECT_SOURCE_DIR}/sources/MemProtector.cpp
+		${PROJECT_SOURCE_DIR}/sources/Instruction.cpp
 		${PROJECT_SOURCE_DIR}/sources/TestEffectTracker.cpp)
 
 set(UNIT_TEST_SOURCES 

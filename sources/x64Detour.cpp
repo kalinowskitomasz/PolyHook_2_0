@@ -3,15 +3,14 @@
 //
 #include "headers/Detour/x64Detour.hpp"
 
-PLH::x64Detour::x64Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
-: PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
+constexpr auto prefferedJumpSize = 16;
+constexpr auto minimumJumpSize = 6;
 
-}
+PLH::x64Detour::x64Detour(const uint64_t fnAddress, const uint64_t fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
+: PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {}
 
 PLH::x64Detour::x64Detour(const char* fnAddress, const char* fnCallback, uint64_t* userTrampVar, PLH::ADisassembler& dis)
-: PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {
-
-}
+: PLH::Detour(fnAddress, fnCallback, userTrampVar, dis) {}
 
 PLH::Mode PLH::x64Detour::getArchType() const {
 	return PLH::Mode::x64;
@@ -84,14 +83,6 @@ PLH::insts_t PLH::x64Detour::makePreferredJump(const uint64_t address, const uin
 	return {pushRax, movRax, xchgRspRax, ret};
 }
 
-uint8_t PLH::x64Detour::getMinJmpSize() const {
-	return 6;
-}
-
-uint8_t PLH::x64Detour::getPrefJmpSize() const {
-	return 16;
-}
-
 bool PLH::x64Detour::hook() {
 	// ------- Must resolve callback first, so that m_disasm branchmap is filled for prologue stuff
 	insts_t callbackInsts = m_disasm.disassemble(m_fnCallback, m_fnCallback, m_fnCallback + 100);
@@ -126,7 +117,7 @@ bool PLH::x64Detour::hook() {
 
 	std::cout << "Original function:" << std::endl << insts << std::endl;
 
-	uint64_t minProlSz = getPrefJmpSize(); // min size of patches that may split instructions
+	uint64_t minProlSz = prefferedJumpSize; // min size of patches that may split instructions
 	uint64_t roundProlSz = minProlSz; // nearest size to min that doesn't split any instructions
 
 	insts_t prologue;
@@ -191,8 +182,8 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 		}
 
 		// prol + jmp back to prol + N * jmpEntries
-		m_trampolineSz = (uint16_t)(prolSz + (getMinJmpSize() + destHldrSz) +
-			(getMinJmpSize() + destHldrSz)* neededEntryCount);
+		m_trampolineSz = (uint16_t)(prolSz + (minimumJumpSize + destHldrSz) +
+			(minimumJumpSize + destHldrSz)* neededEntryCount);
 		m_trampoline = (uint64_t) new unsigned char[m_trampolineSz];
 
 		int64_t delta = m_trampoline - prolStart;
@@ -220,8 +211,8 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 		return makeMinimumJump(address, destination, captureAddr);
 	};
 
-	uint64_t jmpTblStart = jmpToProlAddr + getMinJmpSize();
-	PLH::insts_t jmpTblEntries = relocateTrampoline(prologue, jmpTblStart, delta, getMinJmpSize(),
+	uint64_t jmpTblStart = jmpToProlAddr + minimumJumpSize;
+	PLH::insts_t jmpTblEntries = relocateTrampoline(prologue, jmpTblStart, delta, minimumJumpSize,
 													makeJmpFn, instsNeedingReloc, instsNeedingEntry);
 	if (jmpTblEntries.size() > 0)
 		return jmpTblEntries;
