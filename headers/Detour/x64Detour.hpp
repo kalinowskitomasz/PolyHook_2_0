@@ -27,19 +27,17 @@ public:
 
 	~x64Detour() override {}
 	
-	virtual bool hook() override;
+	bool hook() override;
 
 	Mode getArchType() const override;
 
 	insts_t makeMinimumJump(const uint64_t address, const uint64_t destination, const uint64_t destHolder) const;
+	
+	insts_t makeLeaJump(const Instruction inst, const uint64_t address, const uint64_t destination, const uint64_t destHolder) const;
 
 	insts_t makePreferredJump(const uint64_t address, const uint64_t destination) const;
 
 private:
-	void extracted(uint8_t destHldrSz, PLH::insts_t &instsNeedingEntry, PLH::insts_t &instsNeedingReloc, uint64_t prolStart, uint16_t prolSz, PLH::insts_t &prologue);
-	
-	void extracted(const int64_t &delta, uint8_t destHldrSz, PLH::insts_t &instsNeedingEntry, PLH::insts_t &instsNeedingReloc, const uint64_t &jmpHolderCurAddr, const uint64_t &jmpToProlAddr, uint64_t prolStart, uint16_t prolSz, PLH::insts_t &prologue);
-	
 	std::optional<insts_t> makeTrampoline(insts_t& prologue);
 };
 }

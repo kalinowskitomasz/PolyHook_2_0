@@ -80,13 +80,14 @@ protected:
 							 const uint64_t roundProlSz,
 							 const int64_t delta,
 							 PLH::insts_t &instsNeedingEntry,
-							 PLH::insts_t &instsNeedingReloc);
+							 PLH::insts_t &instsNeedingReloc,
+							 PLH::insts_t &instsNeedingJump);
 
 	PLH::insts_t relocateTrampoline(insts_t& prologue,
 									uint64_t jmpTblStart,
 									const int64_t delta,
 									const uint8_t jmpSz,
-									std::function<PLH::insts_t(const uint64_t, const uint64_t)> makeJmp,
+									std::function<PLH::insts_t(Instruction, const uint64_t, const uint64_t)> makeJmp,
 									const PLH::insts_t& instsNeedingReloc,
 									const PLH::insts_t& instsNeedingEntry);
 

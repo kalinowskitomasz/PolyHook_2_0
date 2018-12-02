@@ -104,7 +104,7 @@ bool PLH::Detour::expandProlSelfJmps(insts_t& prol,
 	return true;
 }
 
-void PLH::Detour::buildRelocationList(insts_t& prologue, const uint64_t roundProlSz, const int64_t delta, PLH::insts_t& instsNeedingEntry, PLH::insts_t& instsNeedingReloc) {
+void PLH::Detour::buildRelocationList(insts_t& prologue, const uint64_t roundProlSz, const int64_t delta, PLH::insts_t& instsNeedingEntry, PLH::insts_t& instsNeedingReloc, PLH::insts_t& instsNeedingJump) {
 	assert(instsNeedingEntry.size() == 0);
 	assert(instsNeedingReloc.size() == 0);
 	assert(prologue.size() > 0);
@@ -113,7 +113,10 @@ void PLH::Detour::buildRelocationList(insts_t& prologue, const uint64_t roundPro
 
 	for (auto& inst : prologue) {
 		// todo: fix
-		if ((inst.isBranching() && inst.hasDisplacement()) &&
+		
+		auto isBranching = inst.isBranching() && inst.hasDisplacement();
+		auto isRelative = inst.hasDisplacement() && inst.isDisplacementRelative();
+		if ((isBranching || isRelative) &&
 			(inst.getDestination() < prolStart ||
 			inst.getDestination() > prolStart + roundProlSz)) {
 
@@ -126,35 +129,38 @@ void PLH::Detour::buildRelocationList(insts_t& prologue, const uint64_t roundPro
 				instsNeedingReloc.push_back(inst);
 			}
 		}
-		else if(inst.hasDisplacement() && inst.isDisplacementRelative() &&
-				(inst.getDestination() < prolStart || inst.getDestination() > prolStart + roundProlSz)) {
-			instsNeedingReloc.push_back(inst);
-		}
+//		else if(inst.hasDisplacement() && inst.isDisplacementRelative() &&
+//				(inst.getDestination() < prolStart || inst.getDestination() > prolStart + roundProlSz)) {
+//			instsNeedingReloc.push_back(inst);
+		//}
+//		else if(inst.hasDisplacement() && inst.isDisplacementRelative() &&
+//				(inst.getDestination() < prolStart || inst.getDestination() > prolStart + roundProlSz) && inst.getDestination()-
 	}
 }
 
 bool PLH::Detour::unHook() {
-	assert(m_hooked);
+	if (m_hooked) {
+		MemoryProtector prot(m_fnAddress, PLH::calcInstsSz(m_originalInsts), ProtFlag::R | ProtFlag::W | ProtFlag::X);
+		m_disasm.writeEncoding(m_originalInsts);
+		
+		if (m_trampoline != (uint64_t)NULL) {
+			delete[](char*)m_trampoline;
+			m_trampoline = (uint64_t)NULL;
+		}
 
-	MemoryProtector prot(m_fnAddress, PLH::calcInstsSz(m_originalInsts), ProtFlag::R | ProtFlag::W | ProtFlag::X);
-	m_disasm.writeEncoding(m_originalInsts);
-	
-	if (m_trampoline != (uint64_t)NULL) {
-		delete[](char*)m_trampoline;
-		m_trampoline = (uint64_t)NULL;
+		if (m_userTrampVar != NULL) {
+			*m_userTrampVar = (uint64_t)NULL;
+			m_userTrampVar = NULL;
+		}
+		
+		m_hooked = false;
+		return true;
 	}
-
-	if (m_userTrampVar != NULL) {
-		*m_userTrampVar = (uint64_t)NULL;
-		m_userTrampVar = NULL;
-	}
-	
-	m_hooked = false;
-	return true;
+	return false;
 }
 
 PLH::insts_t PLH::Detour::relocateTrampoline(insts_t& prologue, uint64_t jmpTblStart, const int64_t delta, const uint8_t jmpSz,
-											 std::function<PLH::insts_t(const uint64_t, const uint64_t)> makeJmp,
+											 std::function<PLH::insts_t(Instruction, const uint64_t, const uint64_t)> makeJmp,
 											 const PLH::insts_t& instsNeedingReloc, const PLH::insts_t& instsNeedingEntry) {
 	uint64_t jmpTblCurAddr = jmpTblStart;
 	insts_t jmpTblEntries;
@@ -162,7 +168,7 @@ PLH::insts_t PLH::Detour::relocateTrampoline(insts_t& prologue, uint64_t jmpTblS
 		if (std::find(instsNeedingEntry.begin(), instsNeedingEntry.end(), inst) != instsNeedingEntry.end()) {
 			assert(inst.hasDisplacement());
 			// make an entry pointing to where inst did point to
-			auto entry = makeJmp(jmpTblCurAddr, inst.getDestination());
+			auto entry = makeJmp(inst, jmpTblCurAddr, inst.getDestination());
 			
 			// move inst to trampoline and point instruction to entry
 			inst.setAddress(inst.getAddress() + delta);

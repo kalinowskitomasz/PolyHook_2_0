@@ -22,7 +22,8 @@ PLH::Mode PLH::x64Detour::getArchType() const {
  * the jmp should land.**/
 PLH::insts_t PLH::x64Detour::makeMinimumJump(const uint64_t address, const uint64_t destination, const uint64_t destHolder) const {
 	PLH::Instruction::Displacement disp = {0};
-	disp.Relative = PLH::Instruction::calculateRelativeDisplacement<int32_t>(address, destHolder, 6);
+	const auto jumpSize = 6;
+	disp.Relative = PLH::Instruction::calculateRelativeDisplacement<int32_t>(address, destHolder, jumpSize);
 
 	std::vector<uint8_t> destBytes;
 	destBytes.resize(8);
@@ -39,6 +40,45 @@ PLH::insts_t PLH::x64Detour::makeMinimumJump(const uint64_t address, const uint6
 	ss << std::hex << "[" << destHolder << "] ->" << destination;
 
 	return {Instruction(address, disp, 2, true, bytes, "jmp", ss.str()),  specialDest};
+}
+
+PLH::insts_t PLH::x64Detour::makeLeaJump(const Instruction inst, const uint64_t address, const uint64_t destination, const uint64_t destHolder) const {
+	PLH::Instruction::Displacement disp = {0};
+	const auto jumpSize = 6;
+	disp.Relative = PLH::Instruction::calculateRelativeDisplacement<int32_t>(address, destHolder, jumpSize);
+	
+	uint64_t currentAddress = destHolder;
+	Instruction pushRax(destHolder, disp, 0, false, {0x50}, "push rax", "");
+	currentAddress += pushRax.getBytes().size();
+	
+	std::vector<uint8_t> destBytes{0x48, 0xA1};
+	destBytes.resize(10);
+	memcpy(destBytes.data()+2, &destination, 8);
+	Instruction lea(currentAddress, disp, 0, false, destBytes, "lea rax", "");
+	currentAddress +=lea.getBytes().size();
+	
+	Instruction popRax(currentAddress, disp, 0, false, {0x58}, "pop rax", "");
+	currentAddress +=popRax.getBytes().size();
+	
+	std::vector<uint8_t> bytes;
+	bytes.resize(6);
+	bytes[0] = 0xFF;
+	bytes[1] = 0x25;
+	memcpy(&bytes[2], &disp.Relative, 4);
+	
+	PLH::Instruction::Displacement dispBack;
+	dispBack.Relative = PLH::Instruction::calculateRelativeDisplacement<int32_t>(currentAddress, address, jumpSize);
+	std::vector<uint8_t> bytesBack;
+	bytesBack.resize(6);
+	bytesBack[0] = 0xFF;
+	bytesBack[1] = 0x25;
+	memcpy(&bytesBack[2], &dispBack.Relative, 4);
+	
+	std::stringstream ss;
+	ss << std::hex << "[" << destHolder << "] ->" << destination;
+	
+	return {Instruction(address, disp, 2, true, bytes, "jmp", ss.str()),  pushRax, lea, popRax,
+		Instruction(currentAddress, dispBack, 2, true, bytesBack, "jmp", ss.str())};
 }
 
 /**Write a 25 byte absolute jump. This is preferred since it doesn't require an indirect memory holder.
@@ -175,6 +215,7 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 	uint8_t neededEntryCount = 5;
 	PLH::insts_t instsNeedingEntry;
 	PLH::insts_t instsNeedingReloc;
+	PLH::insts_t instsNeedingJump;
 	do {
 		if (m_trampoline != (uint64_t)NULL) {
 			delete[](unsigned char*)m_trampoline;
@@ -188,7 +229,7 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 
 		int64_t delta = m_trampoline - prolStart;
 
-		buildRelocationList(prologue, prolSz, delta, instsNeedingEntry, instsNeedingReloc);
+		buildRelocationList(prologue, prolSz, delta, instsNeedingEntry, instsNeedingReloc, instsNeedingJump);
 	} while (instsNeedingEntry.size() > neededEntryCount);
 
 	const int64_t delta = m_trampoline - prolStart;
@@ -206,9 +247,9 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 
 	// each jmp tbl entries holder is one slot down from the previous
 	uint64_t captureAddr = jmpHolderCurAddr;
-	auto makeJmpFn = [&](const uint64_t address, const uint64_t destination) {
+	auto makeJmpFn = [&](Instruction inst, const uint64_t address, const uint64_t destination) {
 		captureAddr -= destHldrSz;
-		return makeMinimumJump(address, destination, captureAddr);
+		return makeLeaJump(inst, address, destination, captureAddr);
 	};
 
 	uint64_t jmpTblStart = jmpToProlAddr + minimumJumpSize;

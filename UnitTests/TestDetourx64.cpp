@@ -2,6 +2,8 @@
 // Created by steve on 7/9/18.
 //
 #include <Catch.hpp>
+#include <sys/types.h>
+#include <sys/mman.h>
 #include "headers/Detour/x64Detour.hpp"
 #include "headers/CapstoneDisassembler.hpp"
 
@@ -88,59 +90,64 @@ NOINLINE void* h_hookMalloc(size_t size, size_t size2) {
 
 TEST_CASE("Testing 64 detours", "[x64Detour],[ADetour]") {
 	PLH::CapstoneDisassembler dis(PLH::Mode::x64);
+//
+//	SECTION("Normal function") {
+//		hookMe1();
+//		PLH::x64Detour detour((char*)&hookMe1, (char*)&h_hookMe1, &hookMe1Tramp, dis);
+//		hookMe1();
+//		REQUIRE(detour.hook() == true);
+//
+//		effects.PushEffect();
+//		hookMe1();
+//		REQUIRE(effects.PopEffect().didExecute());
+//		detour.unHook();
+//	}
+//	
+//	SECTION("Normal function2") {
+//		PLH::x64Detour detour((char*)&hookMe1, (char*)&h_hookMe1, &hookMe1Tramp, dis);
+//		hookMe1();
+//		REQUIRE(detour.hook() == true);
+//		
+//		effects.PushEffect();
+//		hookMe1();
+//		REQUIRE(effects.PopEffect().didExecute());
+//		detour.unHook();
+//	}
+//
+//	SECTION("Loop function") {
+//		PLH::x64Detour detour((char*)&hookMe2, (char*)&h_hookMe2, &hookMe2Tramp, dis);
+//		REQUIRE(detour.hook() == true);
+//
+//		effects.PushEffect();
+//		hookMe2();
+//		REQUIRE(effects.PopEffect().didExecute());
+//		detour.unHook();
+//	}
+//
+//	SECTION("Jmp into prol w/src in range") {
+//		PLH::x64Detour detour((char*)&hookMe3, (char*)&h_nullstub, &nullTramp, dis);
+//		REQUIRE(detour.hook() == true);
+//		detour.unHook();
+//	}
+//
+//	SECTION("Jmp into prol w/src out of range") {
+//		PLH::x64Detour detour((char*)&hookMe4, (char*)&h_nullstub, &nullTramp, dis);
+//		REQUIRE(detour.hook() == true);
+//		detour.unHook();
+//	}
 
-	SECTION("Normal function") {
-		PLH::x64Detour detour((char*)&hookMe1, (char*)&h_hookMe1, &hookMe1Tramp, dis);
-		hookMe1();
-		REQUIRE(detour.hook() == true);
-
-		effects.PushEffect();
-		hookMe1();
-		REQUIRE(effects.PopEffect().didExecute());
-	}
-	
-	SECTION("Normal function2") {
-		PLH::x64Detour detour((char*)&hookMe1, (char*)&h_hookMe1, &hookMe1Tramp, dis);
-		hookMe1();
-		REQUIRE(detour.hook() == true);
+	SECTION("hook malloc") {
 		
 		effects.PushEffect();
-		hookMe1();
+		PLH::x64Detour detour((char*)&calloc, (char*)&h_hookMalloc, &hookMallocTramp, dis);
+		//effects.PushEffect(); // catch does some allocations, push effect first so peak works
+		bool result = detour.hook();
+		
+		REQUIRE(result == true);
+
+		void* pMem = calloc(16, 16);
+		free(pMem);
+		detour.unHook(); // unhook so we can popeffect safely w/o catch allocation happening again
 		REQUIRE(effects.PopEffect().didExecute());
 	}
-
-	SECTION("Loop function") {
-		PLH::x64Detour detour((char*)&hookMe2, (char*)&h_hookMe2, &hookMe2Tramp, dis);
-		REQUIRE(detour.hook() == true);
-
-		effects.PushEffect();
-		hookMe2();
-		REQUIRE(effects.PopEffect().didExecute());
-	}
-
-	SECTION("Jmp into prol w/src in range") {
-		PLH::x64Detour detour((char*)&hookMe3, (char*)&h_nullstub, &nullTramp, dis);
-		REQUIRE(detour.hook() == true);
-	}
-
-	SECTION("Jmp into prol w/src out of range") {
-		PLH::x64Detour detour((char*)&hookMe4, (char*)&h_nullstub, &nullTramp, dis);
-		REQUIRE(detour.hook() == true);
-	}
-
-//	SECTION("hook malloc") {
-//        //effects.PushEffect();
-//        void* a = calloc(16, 16);
-//        h_hookMalloc(10, 10);
-//		PLH::x64Detour detour((char*)&calloc, (char*)&h_hookMalloc, &hookMallocTramp, dis);
-//		//effects.PushEffect(); // catch does some allocations, push effect first so peak works
-//		bool result = detour.hook();
-//
-//		REQUIRE(result == true);
-//
-//		void* pMem = calloc(16, 16);
-//		free(pMem);
-//		detour.unHook(); // unhook so we can popeffect safely w/o catch allocation happening again
-//		REQUIRE(effects.PopEffect().didExecute());
-//	}
 }
