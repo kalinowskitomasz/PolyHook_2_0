@@ -31,14 +31,10 @@ public:
 
 	Mode getArchType() const override;
 
-	insts_t makeMinimumJump(const uint64_t address, const uint64_t destination, const uint64_t destHolder) const;
 	
 	insts_t makeLeaJump(const Instruction inst, const uint64_t address, const uint64_t destination, const uint64_t destHolder) const;
-
-	insts_t makePreferredJump(const uint64_t address, const uint64_t destination) const;
-
 private:
-	std::optional<insts_t> makeTrampoline(insts_t& prologue);
+	bool makeTrampoline(insts_t& prologue, insts_t& trampolineOut);
 };
 }
 #endif //POLYHOOK_2_X64DETOUR_HPP

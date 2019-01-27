@@ -17,20 +17,6 @@ PLH::Mode PLH::x86Detour::getArchType() const {
 	return PLH::Mode::x86;
 }
 
-PLH::insts_t PLH::x86Detour::makeJmp(const uint64_t address, const uint64_t destination) const {
-	Instruction::Displacement disp;
-	disp.Relative = Instruction::calculateRelativeDisplacement<int32_t>(address, destination, 5);
-
-	std::vector<uint8_t> bytes(5);
-	bytes[0] = 0xE9;
-	memcpy(&bytes[1], &disp.Relative, 4);
-
-	std::stringstream ss;
-	ss << std::hex << destination;
-
-	return {Instruction(address, disp, 1, true, bytes, "jmp", ss.str(), Mode::x86)};
-}
-
 uint8_t PLH::x86Detour::getJmpSize() const {
 	return 5;
 }
@@ -67,7 +53,7 @@ bool PLH::x86Detour::hook() {
 
 	// --------------- END RECURSIVE JMP RESOLUTION ---------------------
 
-	std::cout << "Original function:" << std::endl << insts << std::endl;
+	ErrorLog::singleton().push("Original function:\n" + instsToStr(insts) + "\n", ErrorLevel::INFO);
 
 	uint64_t minProlSz = getJmpSize(); // min size of patches that may split instructions
 	uint64_t roundProlSz = minProlSz; // nearest size to min that doesn't split any instructions
@@ -91,20 +77,22 @@ bool PLH::x86Detour::hook() {
 	}
 
 	m_originalInsts = prologue;
-	std::cout << "Prologue to overwrite:" << std::endl << prologue << std::endl;
+	ErrorLog::singleton().push("Prologue to overwrite:\n" + instsToStr(prologue) + "\n", ErrorLevel::INFO);
 
 	{   // copy all the prologue stuff to trampoline
-		auto jmpTblOpt = makeTrampoline(prologue);
+		insts_t jmpTblOpt;
+		if (!makeTrampoline(prologue, jmpTblOpt))
+			return false;
 
-		std::cout << "Trampoline:" << std::endl << m_disasm.disassemble(m_trampoline, m_trampoline, m_trampoline + m_trampolineSz) << std::endl;
-		if (jmpTblOpt)
-			std::cout << "Trampoline Jmp Tbl:" << std::endl << *jmpTblOpt << std::endl;
+		ErrorLog::singleton().push("Trampoline:\n" + instsToStr(m_disasm.disassemble(m_trampoline, m_trampoline, m_trampoline + m_trampolineSz)) + "\n", ErrorLevel::INFO);
+		if (jmpTblOpt.size() > 0)
+			ErrorLog::singleton().push("Trampoline Jmp Tbl:\n" + instsToStr(jmpTblOpt) + "\n", ErrorLevel::INFO);
 	}
 
 	*m_userTrampVar = m_trampoline;
 
 	MemoryProtector prot(m_fnAddress, roundProlSz, ProtFlag::R | ProtFlag::W | ProtFlag::X);
-	auto prolJmp = makeJmp(m_fnAddress, m_fnCallback);
+	auto prolJmp = makex86Jmp(m_fnAddress, m_fnCallback);
 	m_disasm.writeEncoding(prolJmp);
 
 	// Nop the space between jmp and end of prologue
@@ -115,18 +103,29 @@ bool PLH::x86Detour::hook() {
 	return true;
 }
 
-std::optional<PLH::insts_t> PLH::x86Detour::makeTrampoline(insts_t& prologue) {
+bool PLH::x86Detour::makeTrampoline(insts_t& prologue, insts_t& trampolineOut) {
 	assert(prologue.size() > 0);
 	const uint64_t prolStart = prologue.front().getAddress();
 	const uint16_t prolSz = calcInstsSz(prologue);
 
 	/** Make a guess for the number entries we need so we can try to allocate a trampoline. The allocation
 	address will change each attempt, which changes delta, which changes the number of needed entries. So
-	we just try until we hit that lucky number that works**/
+	we just try until we hit that lucky number that works.
+	
+	The relocation could also because of data operations too. But that's specific to the function and can't
+	work again on a retry (same function, duh). Return immediately in that case.
+	**/
 	uint8_t neededEntryCount = 5;
 	PLH::insts_t instsNeedingEntry;
 	PLH::insts_t instsNeedingReloc;
+
+	uint8_t retries = 0;
 	do {
+		if (retries++ > 4) {
+			ErrorLog::singleton().push("Failed to calculate trampoline information", ErrorLevel::SEV);
+			return false;
+		}
+
 		if (m_trampoline != (uint64_t)NULL) {
 			delete[](unsigned char*)m_trampoline;
 			neededEntryCount = (uint8_t)instsNeedingEntry.size();
@@ -138,7 +137,8 @@ std::optional<PLH::insts_t> PLH::x86Detour::makeTrampoline(insts_t& prologue) {
 
 		int64_t delta = m_trampoline - prolStart;
 
-		buildRelocationList(prologue, prolSz, delta, instsNeedingEntry, instsNeedingReloc);
+		if (!buildRelocationList(prologue, prolSz, delta, instsNeedingEntry, instsNeedingReloc))
+			return false;
 	} while (instsNeedingEntry.size() > neededEntryCount);
 
 	const int64_t delta = m_trampoline - prolStart;
@@ -147,15 +147,11 @@ std::optional<PLH::insts_t> PLH::x86Detour::makeTrampoline(insts_t& prologue) {
 	// Insert jmp from trampoline -> prologue after overwritten section
 	const uint64_t jmpToProlAddr = m_trampoline + prolSz;
 	{
-		auto jmpToProl = makeJmp(jmpToProlAddr, prologue.front().getAddress() + prolSz);
+		auto jmpToProl = makex86Jmp(jmpToProlAddr, prologue.front().getAddress() + prolSz);
 		m_disasm.writeEncoding(jmpToProl);
 	}
 
-	auto makeJmpFn = std::bind(&x86Detour::makeJmp, this, _1, _2);
 	uint64_t jmpTblStart = jmpToProlAddr + getJmpSize();
-	PLH::insts_t jmpTblEntries = relocateTrampoline(prologue, jmpTblStart, delta, getJmpSize(), makeJmpFn, instsNeedingReloc, instsNeedingEntry);
-	if (jmpTblEntries.size() > 0)
-		return jmpTblEntries;
-	else
-		return std::nullopt;
+	trampolineOut = relocateTrampoline(prologue, jmpTblStart, delta, getJmpSize(), makex86Jmp, instsNeedingReloc, instsNeedingEntry);
+	return true;
 }

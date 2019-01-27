@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <iostream>
 #include "headers/Enums.hpp"
 
 namespace PLH {
@@ -22,13 +23,29 @@ public:
 	}
 
 	void push(const Error& err) {
-		std::cout << "[!]ERROR:" << err.msg << std::endl;
+		switch (err.lvl) {
+		case ErrorLevel::INFO:
+			std::cout << "[+] Info: " << err.msg << std::endl;
+			break;
+		case ErrorLevel::WARN:
+			std::cout << "[!] Warn: " << err.msg << std::endl;
+			break;
+		case ErrorLevel::SEV:
+			std::cout << "[!] Error: " << err.msg << std::endl;
+			break;
+		default:
+			std::cout << "Unsupported error message logged " << err.msg << std::endl;
+		}
+		
 		m_log.push_back(err);
 	}
 
 	Error pop() {
-		Error err = m_log.back();
-		m_log.pop_back();
+		Error err = {};
+		if (!m_log.empty()) {
+			err = m_log.back();
+			m_log.pop_back();
+		}
 		return err;
 	}
 

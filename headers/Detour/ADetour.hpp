@@ -76,7 +76,7 @@ protected:
 							uint64_t& minProlSz,
 							uint64_t& roundProlSz);
 
-	void buildRelocationList(insts_t& prologue,
+	bool buildRelocationList(insts_t& prologue,
 							 const uint64_t roundProlSz,
 							 const int64_t delta,
 							 PLH::insts_t &instsNeedingEntry,

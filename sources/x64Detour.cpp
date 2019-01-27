@@ -16,31 +16,6 @@ PLH::Mode PLH::x64Detour::getArchType() const {
 	return PLH::Mode::x64;
 }
 
-/**Write an indirect style 6byte jump. Address is where the jmp instruction will be located, and
- * destHoldershould point to the memory location that *CONTAINS* the address to be jumped to.
- * Destination should be the value that is written into destHolder, and be the address of where
- * the jmp should land.**/
-PLH::insts_t PLH::x64Detour::makeMinimumJump(const uint64_t address, const uint64_t destination, const uint64_t destHolder) const {
-	PLH::Instruction::Displacement disp = {0};
-	const auto jumpSize = 6;
-	disp.Relative = PLH::Instruction::calculateRelativeDisplacement<int32_t>(address, destHolder, jumpSize);
-
-	std::vector<uint8_t> destBytes;
-	destBytes.resize(8);
-	memcpy(destBytes.data(), &destination, 8);
-	Instruction specialDest(destHolder, disp, 0, false, destBytes, "dest holder", "");
-
-	std::vector<uint8_t> bytes;
-	bytes.resize(6);
-	bytes[0] = 0xFF;
-	bytes[1] = 0x25;
-	memcpy(&bytes[2], &disp.Relative, 4);
-
-	std::stringstream ss;
-	ss << std::hex << "[" << destHolder << "] ->" << destination;
-
-	return {Instruction(address, disp, 2, true, bytes, "jmp", ss.str()),  specialDest};
-}
 
 PLH::insts_t PLH::x64Detour::makeLeaJump(const Instruction inst, const uint64_t address, const uint64_t destination, const uint64_t destHolder) const {
 	PLH::Instruction::Displacement disp = {0};
@@ -81,48 +56,6 @@ PLH::insts_t PLH::x64Detour::makeLeaJump(const Instruction inst, const uint64_t 
 		Instruction(currentAddress, dispBack, 2, true, bytesBack, "jmp", ss.str())};
 }
 
-/**Write a 25 byte absolute jump. This is preferred since it doesn't require an indirect memory holder.
- * We first sub rsp by 128 bytes to avoid the red-zone stack space. This is specific to unix only afaik.**/
-PLH::insts_t PLH::x64Detour::makePreferredJump(const uint64_t address, const uint64_t destination) const {
-	PLH::Instruction::Displacement zeroDisp = {0};
-	uint64_t                       curInstAddress = address;
-
-	std::vector<uint8_t> raxBytes = {0x50};
-	Instruction pushRax(curInstAddress,
-						zeroDisp,
-						0,
-						false,
-						raxBytes,
-						"push",
-						"rax");
-	curInstAddress += pushRax.size();
-
-	std::stringstream ss;
-	ss << std::hex << destination;
-
-	std::vector<uint8_t> movRaxBytes;
-	movRaxBytes.resize(10);
-	movRaxBytes[0] = 0x48;
-	movRaxBytes[1] = 0xB8;
-	memcpy(&movRaxBytes[2], &destination, 8);
-
-	Instruction movRax(curInstAddress, zeroDisp, 0, false,
-					   movRaxBytes, "mov", "rax, " + ss.str());
-	curInstAddress += movRax.size();
-
-	std::vector<uint8_t> xchgBytes = {0x48, 0x87, 0x04, 0x24};
-	Instruction xchgRspRax(curInstAddress, zeroDisp, 0, false,
-						   xchgBytes, "xchg", "QWORD PTR [rsp],rax");
-	curInstAddress += xchgRspRax.size();
-
-	std::vector<uint8_t> retBytes = {0xC3};
-	Instruction ret(curInstAddress, zeroDisp, 0, false,
-					retBytes, "ret", "");
-	curInstAddress += ret.size();
-
-	return {pushRax, movRax, xchgRspRax, ret};
-}
-
 bool PLH::x64Detour::hook() {
 	// ------- Must resolve callback first, so that m_disasm branchmap is filled for prologue stuff
 	insts_t callbackInsts = m_disasm.disassemble(m_fnCallback, m_fnCallback, m_fnCallback + 100);
@@ -154,8 +87,7 @@ bool PLH::x64Detour::hook() {
 	m_fnAddress = insts.front().getAddress();
 
 	// --------------- END RECURSIVE JMP RESOLUTION ---------------------
-
-	std::cout << "Original function:" << std::endl << insts << std::endl;
+	ErrorLog::singleton().push("Original function:\n" + instsToStr(insts) + "\n", ErrorLevel::INFO);
 
 	uint64_t minProlSz = prefferedJumpSize; // min size of patches that may split instructions
 	uint64_t roundProlSz = minProlSz; // nearest size to min that doesn't split any instructions
@@ -179,20 +111,22 @@ bool PLH::x64Detour::hook() {
 	}
 
 	m_originalInsts = prologue;
-	std::cout << "Prologue to overwrite:" << std::endl << prologue << std::endl;
-
+	ErrorLog::singleton().push("Prologue to overwrite:\n" + instsToStr(prologue) + "\n", ErrorLevel::INFO);
+	
 	{   // copy all the prologue stuff to trampoline
-		auto jmpTblOpt = makeTrampoline(prologue);
+		auto makeJmpFn = std::bind(&x64Detour::makePreferredJump, this, _1, _2, _3);
+		if (!makeTrampoline(prologue, jmpTblOpt))
+			return false;
 
-		std::cout << "Trampoline:" << std::endl << m_disasm.disassemble(m_trampoline, m_trampoline, m_trampoline + m_trampolineSz) << std::endl;
-		if (jmpTblOpt)
-			std::cout << "Trampoline Jmp Tbl:" << std::endl << *jmpTblOpt << std::endl;
+		ErrorLog::singleton().push("Trampoline:\n" + instsToStr(m_disasm.disassemble(m_trampoline, m_trampoline, m_trampoline + m_trampolineSz)) + "\n", ErrorLevel::INFO);
+		if (jmpTblOpt.size() > 0)
+			ErrorLog::singleton().push("Trampoline Jmp Tbl:\n" + instsToStr(jmpTblOpt) + "\n", ErrorLevel::INFO);
 	}
 
 	*m_userTrampVar = m_trampoline;
 
 	MemoryProtector prot(m_fnAddress, roundProlSz, ProtFlag::R | ProtFlag::W | ProtFlag::X);
-	auto prolJmp = makePreferredJump(m_fnAddress, m_fnCallback);
+	auto prolJmp = makex64PreferredJump(m_fnAddress, m_fnCallback);
 	m_disasm.writeEncoding(prolJmp);
 
 	// Nop the space between jmp and end of prologue
@@ -203,7 +137,7 @@ bool PLH::x64Detour::hook() {
 	return true;
 }
 
-std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
+bool PLH::x64Detour::makeTrampoline(insts_t& prologue, insts_t& trampolineOut) {
 	assert(prologue.size() > 0);
 	const uint64_t prolStart = prologue.front().getAddress();
 	const uint16_t prolSz = calcInstsSz(prologue);
@@ -211,12 +145,21 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 
 	/** Make a guess for the number entries we need so we can try to allocate a trampoline. The allocation
 	address will change each attempt, which changes delta, which changes the number of needed entries. So
-	we just try until we hit that lucky number that works**/
+	we just try until we hit that lucky number that works
+	
+	The relocation could also because of data operations too. But that's specific to the function and can't
+	work again on a retry (same function, duh). Return immediately in that case.**/
 	uint8_t neededEntryCount = 5;
 	PLH::insts_t instsNeedingEntry;
 	PLH::insts_t instsNeedingReloc;
 	PLH::insts_t instsNeedingJump;
+	uint8_t retries = 0;
 	do {
+		if (retries++ > 4) {
+			ErrorLog::singleton().push("Failed to calculate trampoline information", ErrorLevel::SEV);
+			return false;
+		}
+
 		if (m_trampoline != (uint64_t)NULL) {
 			delete[](unsigned char*)m_trampoline;
 			neededEntryCount = (uint8_t)instsNeedingEntry.size();
@@ -229,7 +172,8 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 
 		int64_t delta = m_trampoline - prolStart;
 
-		buildRelocationList(prologue, prolSz, delta, instsNeedingEntry, instsNeedingReloc, instsNeedingJump);
+		buildRelocationList(prologue, prolSz, delta, instsNeedingEntry, instsNeedingReloc);
+			return false;
 	} while (instsNeedingEntry.size() > neededEntryCount);
 
 	const int64_t delta = m_trampoline - prolStart;
@@ -239,9 +183,9 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 	const uint64_t jmpToProlAddr = m_trampoline + prolSz;
 	const uint64_t jmpHolderCurAddr = m_trampoline + m_trampolineSz - destHldrSz;
 	{
-		auto jmpToProl = makeMinimumJump(jmpToProlAddr, prologue.front().getAddress() + prolSz, jmpHolderCurAddr);
+		auto jmpToProl = makex64MinimumJump(jmpToProlAddr, prologue.front().getAddress() + prolSz, jmpHolderCurAddr);
 
-		std::cout << "Jmp To Prol:" << std::endl << jmpToProl << std::endl;
+		ErrorLog::singleton().push("Jmp To Prol:\n" + instsToStr(jmpToProl) + "\n", ErrorLevel::INFO);
 		m_disasm.writeEncoding(jmpToProl);
 	}
 
@@ -255,8 +199,6 @@ std::optional<PLH::insts_t> PLH::x64Detour::makeTrampoline(insts_t& prologue) {
 	uint64_t jmpTblStart = jmpToProlAddr + minimumJumpSize;
 	PLH::insts_t jmpTblEntries = relocateTrampoline(prologue, jmpTblStart, delta, minimumJumpSize,
 													makeJmpFn, instsNeedingReloc, instsNeedingEntry);
-	if (jmpTblEntries.size() > 0)
-		return jmpTblEntries;
-	else
-		return std::nullopt;
+
+	return true;
 }
