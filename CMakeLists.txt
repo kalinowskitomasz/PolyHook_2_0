@@ -4,11 +4,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Turn Features On/Off, Set build options
-option(FEATURE_EXCEPTION "Implement all exception hooking functionality" ON)
-option(FEATURE_VIRTUALS "Implement all virtual table hooking functionality" ON)
-option(FEATURE_INLINENTD "Support inline hooks without specifying typedefs by generating callback stubs at runtime with AsmJit" ON)
-option(FEATURE_PE "Implement all win pe hooking functionality" ON)
+option(FEATURE_EXCEPTION "Implement all exception hooking functionality" OFF)
+option(FEATURE_VIRTUALS "Implement all virtual table hooking functionality" OFF)
+option(FEATURE_INLINENTD "Support inline hooks without specifying typedefs by generating callback stubs at runtime with AsmJit" OFF)
+option(FEATURE_PE "Implement all win pe hooking functionality" OFF)
 option(CAPSTONE_FULL "Build all features of capstone." OFF)
+
+add_subdirectory(capstone) 
 
 # Detect architecture, it determines if x86 or x64 hooks will be build 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -34,15 +36,14 @@ set(HEADER_FILES ${PROJECT_SOURCE_DIR}/headers/ADisassembler.hpp
 		${PROJECT_SOURCE_DIR}/headers/Misc.hpp
 		${PROJECT_SOURCE_DIR}/headers/UID.hpp
 		${PROJECT_SOURCE_DIR}/headers/ErrorLog.hpp
-		${PROJECT_SOURCE_DIR}/headers/MemProtector.hpp
-		${PROJECT_SOURCE_DIR}/headers/PageAllocator.hpp)
+		${PROJECT_SOURCE_DIR}/headers/MemProtector.hpp)
 
 set(HEADER_IMP_SOURCES 
 		${PROJECT_SOURCE_DIR}/sources/CapstoneDisassembler.cpp
 		${PROJECT_SOURCE_DIR}/sources/MemProtector.cpp
 		${PROJECT_SOURCE_DIR}/sources/Instruction.cpp
 		${PROJECT_SOURCE_DIR}/sources/TestEffectTracker.cpp
-		${PROJECT_SOURCE_DIR}/sources/PageAllocator.cpp)
+		)
 
 set(UNIT_TEST_SOURCES 
 		${PROJECT_SOURCE_DIR}/MainTests.cpp
@@ -119,12 +120,16 @@ if(FEATURE_PE MATCHES ON)
 			${PROJECT_SOURCE_DIR}/UnitTests/TestIatHook.cpp)
 endif()
 
+include_directories(${PROJECT_SOURCE_DIR})
 if(FEATURE_INLINENTD MATCHES ON)
 	set(NTD_HEADER_FILES
-		${PROJECT_SOURCE_DIR}/headers/Detour/ILCallback.hpp)
+		${PROJECT_SOURCE_DIR}/headers/Detour/ILCallback.hpp
+		${PROJECT_SOURCE_DIR}/headers/PageAllocator.hpp
+		)
 	
 	set(NTD_SOURCES 
-		${PROJECT_SOURCE_DIR}/sources/ILCallback.cpp)
+		${PROJECT_SOURCE_DIR}/sources/ILCallback.cpp
+		${PROJECT_SOURCE_DIR}/sources/PageAllocator.cpp)
 
 	set(HEADER_FILES ${HEADER_FILES} ${NTD_HEADER_FILES})
 	set(HEADER_IMP_SOURCES ${HEADER_IMP_SOURCES} ${NTD_SOURCES})

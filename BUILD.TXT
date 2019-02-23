@@ -1,17 +1,18 @@
-cmake build command:
+cmake build command for out of source build:
 
 cmake -S PolyHook_2_0 -B_builds -DCMAKE_BUILD_TYPE=Debug
 
-add flag for shared library -DBUILD_SHARED_LIBS=ON
+this will build staticaly linked library. To build dynamically linked add parameter:
+-DBUILD_SHARED_LIBS=ON
 
-then:
-
+then to build test runner:
 cmake --build _builds --target TestRunner
 
 or 
 
-cmake --build _builds --target PolyHook_2_0 --CMAKE_SHARED
+to build library: 
+cmake --build _builds --target PolyHook_2_0
 
-for 32 bit set flags:
+To build 32 bit executable add flags:
 -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32
 

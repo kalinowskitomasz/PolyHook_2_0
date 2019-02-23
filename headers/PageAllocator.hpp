@@ -9,8 +9,11 @@
 #include <limits>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include <Windows.h>
 
+
+#ifdef _MSC_VER
+	#include <Windows.h>
+#endif
 namespace PLH {
 
 	/** Given some starting address and some excusive range allocate and return memory 

@@ -7,13 +7,10 @@
 
 #include "headers/Enums.hpp"
 #define WIN32_LEAN_AND_MEAN
-<<<<<<< HEAD
-#endif
+
+#define NOMINMAX
 
 #ifdef _MSC_VER
-=======
-#define NOMINMAX
->>>>>>> origin/master
 #include <Windows.h>
 #else
 #include <unistd.h>
