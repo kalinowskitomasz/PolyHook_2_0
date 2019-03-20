@@ -23,3 +23,7 @@ steps:
   inputs:
     workingDirectory: '$(Build.ArtifactStagingDirectory)'
     cmakeArgs: '--build $(Build.ArtifactStagingDirectory)/build'
+
+- script:  |
+    $(Build.ArtifactStagingDirectory)/build/TestRunner
+  displayName: 'run tests'
