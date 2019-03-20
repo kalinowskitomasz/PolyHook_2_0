@@ -14,4 +14,14 @@ steps:
     git submodule update --init --recursive
   displayName: 'update submodules'
 
+- template: git submodule 
+
 - task: CMake@1
+  inputs:
+    workingDirectory: '$(Build.ArtifactStagingDirectory)'
+    cmakeArgs: '-S $(Build.SourcesDirectory) -Bbuild'
+
+- task: CMake@1
+  inputs:
+    workingDirectory: '$(Build.ArtifactStagingDirectory)'
+    cmakeArgs: '--build $(Build.SourcesDirectory)/build'
