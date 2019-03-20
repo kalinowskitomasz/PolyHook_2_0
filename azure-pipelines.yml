@@ -4,7 +4,7 @@
 # https://docs.microsoft.com/azure/devops/pipelines/apps/c-cpp/gcc
 
 trigger:
-- master
+- build_on_nix_systems
 
 pool:
   vmImage: 'Ubuntu-16.04'
@@ -13,9 +13,5 @@ steps:
 - script: |
     git submodule update --init --recursive
   displayName: 'update submodules'
-- script: |
-    cmake -S . -B_build 
-  displayName: 'cmake config'
-- script: |
-    cmake --build _build
-  displayName: 'cmake build'
+
+- task: CMake@1
