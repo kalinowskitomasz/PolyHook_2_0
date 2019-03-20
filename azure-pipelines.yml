@@ -22,4 +22,4 @@ steps:
 - task: CMake@1
   inputs:
     workingDirectory: '$(Build.ArtifactStagingDirectory)'
-    cmakeArgs: '--build $(Build.SourcesDirectory)/build'
+    cmakeArgs: '--build $(Build.ArtifactStagingDirectory)/build'
