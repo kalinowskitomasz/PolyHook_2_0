@@ -11,5 +11,11 @@ pool:
 
 steps:
 - script: |
+    git submodule update --init --recursive
+  displayName: 'update submodules'
+- script: |
     cmake -S . -B_build 
-  displayName: 'make'
+  displayName: 'cmake config'
+- script: |
+    cmake --build . 
+    displayName: build
