@@ -11,5 +11,5 @@ pool:
 
 steps:
 - script: |
-    make 
+    cmake -S . -B_build 
   displayName: 'make'
