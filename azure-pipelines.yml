@@ -17,7 +17,7 @@ steps:
 - task: CMake@1
   inputs:
     workingDirectory: '$(Build.ArtifactStagingDirectory)'
-    cmakeArgs: '-S $(Build.SourcesDirectory) -Bbuild'
+    cmakeArgs: '-S $(Build.SourcesDirectory) -B$(Build.ArtifactStagingDirectory)/build'
 
 - task: CMake@1
   inputs:
